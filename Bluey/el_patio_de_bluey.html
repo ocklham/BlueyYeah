@@ -1913,7 +1913,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       updateMarqui(dt);
       updateTufts(dt);
       targetCam.copy(bluey.position).add(camOffset).add(panOffset);
-      camera.position.lerp(targetCam,Math.min(1,dt*4.5));
+      // Knockback flings Bluey at 16 u/s; ease the chase so the camera doesn't jolt
+      camera.position.lerp(targetCam,Math.min(1,dt*2.0));
       camera.lookAt(bluey.position.x+panOffset.x,0.5,bluey.position.z+panOffset.z);
       renderer.render(scene,camera);
       requestAnimationFrame(loop);
@@ -2038,9 +2039,9 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     updateTufts(dt);
 
     // Camera follow
-    targetCam.copy(bluey.position).add(camOffset);
+    targetCam.copy(bluey.position).add(camOffset).add(panOffset);
     camera.position.lerp(targetCam,Math.min(1,dt*4.5));
-    camera.lookAt(bluey.position.x,0.5,bluey.position.z);
+    camera.lookAt(bluey.position.x+panOffset.x,0.5,bluey.position.z+panOffset.z);
 
     maybeRandomBark(dt);
     updateBarkAnim(dt);
