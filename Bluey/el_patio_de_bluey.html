@@ -1612,6 +1612,11 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     if(!k)return;
     keys[k]=true;
     consumeHint();
+    // Movement keys trigger auto-recenter on the camera if there's any pan offset
+    if(['w','a','s','d'].includes(k)&&!recentering&&(panOffset.x*panOffset.x+panOffset.z*panOffset.z>0.04)){
+      recentering=true;
+      recenterT=0;
+    }
     if(k==='space'||['w','a','s','d'].includes(k))e.preventDefault();
     if(k==='r')reset();
   }
@@ -1627,11 +1632,18 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   // PAN_Y_FACTOR compensates for the iso elevation: 1 px of vertical drag would
   // otherwise only translate the world by sin(elevation) px on screen.
   const panOffset=new THREE.Vector3();
+  const panVel=new THREE.Vector3();   // velocity for the spring-damper bounce
   const PAN_Y_FACTOR=camOffset.length()/camOffset.y;  // ≈1.57 for (24,28,24)
+  const PAN_LIMIT=10;        // max drag distance from Bluey (world units, XZ)
+  const PAN_RUBBER=0.35;     // resistance applied to drag beyond PAN_LIMIT
+  const SPRING_K=40;         // spring stiffness pulling pan back inside
+  const SPRING_C=8;          // damping; <2·sqrt(K)≈12.6 gives a subtle overshoot
   let dragging=false,dragLastX=0,dragLastY=0;
+  let recentering=false,recenterT=0;
   canvas.addEventListener('mousedown',(e)=>{
     if(e.button!==0)return;
     dragging=true;
+    recentering=false;       // user took control again, cancel auto-recenter
     dragLastX=e.clientX;dragLastY=e.clientY;
     e.preventDefault();
   });
@@ -1640,12 +1652,18 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     const dx=e.clientX-dragLastX,dy=e.clientY-dragLastY;
     dragLastX=e.clientX;dragLastY=e.clientY;
     const wpp=(camera.right-camera.left)/(canvas.clientWidth||1000);
-    // Drag right → world moves right → camera moves left (along -camRight)
     panOffset.x-=camRight.x*dx*wpp;
     panOffset.z-=camRight.z*dx*wpp;
-    // Drag down → world moves down → camera moves "forward" in XZ (along +camDir)
     panOffset.x+=camDir.x*dy*wpp*PAN_Y_FACTOR;
     panOffset.z+=camDir.z*dy*wpp*PAN_Y_FACTOR;
+    // Soft rubber-band: beyond PAN_LIMIT the further you drag, the less it moves
+    const mag=Math.hypot(panOffset.x,panOffset.z);
+    if(mag>PAN_LIMIT){
+      const damped=PAN_LIMIT+(mag-PAN_LIMIT)*PAN_RUBBER;
+      const k=damped/mag;
+      panOffset.x*=k;
+      panOffset.z*=k;
+    }
   });
   window.addEventListener('mouseup',(e)=>{if(e.button===0)dragging=false});
   canvas.addEventListener('wheel',(e)=>{
@@ -1658,10 +1676,52 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   window.addEventListener('keydown',(e)=>{
     if(e.key.toLowerCase()==='c'&&!e.repeat){
       panOffset.set(0,0,0);
+      panVel.set(0,0,0);
+      recentering=false;
       zoomD=ZOOM_D_DEFAULT;
       resize();
     }
   });
+
+  // Called once per frame before either camera-follow block runs. Handles two
+  // independent forces on panOffset:
+  //   1) Spring-back: if outside PAN_LIMIT (or with leftover velocity), pull
+  //      toward the boundary with a subtle bounce.
+  //   2) Auto-recenter: if the player just pressed WASD, decay panOffset
+  //      toward zero with accelerating speed (slow start, fast finish).
+  function updatePanCamera(dt){
+    if(recentering&&!dragging){
+      recenterT+=dt;
+      const speed=Math.min(5,0.5+recenterT*4);   // accelerate over ~1s
+      const decay=Math.max(0,1-dt*speed);
+      panOffset.x*=decay;
+      panOffset.z*=decay;
+      panVel.x*=decay;
+      panVel.z*=decay;
+      if(Math.hypot(panOffset.x,panOffset.z)<0.05){
+        panOffset.set(0,0,0);
+        panVel.set(0,0,0);
+        recentering=false;
+      }
+    }
+    if(!dragging){
+      const mag=Math.hypot(panOffset.x,panOffset.z);
+      const needsSpring=mag>PAN_LIMIT||panVel.lengthSq()>0.01;
+      if(needsSpring){
+        let tx=panOffset.x,tz=panOffset.z;
+        if(mag>PAN_LIMIT){
+          const k=PAN_LIMIT/mag;
+          tx=panOffset.x*k;tz=panOffset.z*k;
+        }
+        panVel.x+=(tx-panOffset.x)*SPRING_K*dt-panVel.x*SPRING_C*dt;
+        panVel.z+=(tz-panOffset.z)*SPRING_K*dt-panVel.z*SPRING_C*dt;
+        panOffset.x+=panVel.x*dt;
+        panOffset.z+=panVel.z*dt;
+      }
+    }else{
+      panVel.set(0,0,0);  // drag overrides physics
+    }
+  }
   setTimeout(()=>canvas.focus(),200);
 
   function reset(){
@@ -1868,6 +1928,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   function loop(now){
     const dt=Math.min(0.05,(now-last)/1000);
     last=now;
+
+    updatePanCamera(dt);
 
     // Knockback overrides player input
     if(knockback.active){
