@@ -150,6 +150,9 @@ h1 .bluey-mark span:nth-child(5){color:#6FC0DA;animation-delay:0.43s}
 .loader-btn:active{transform:scale(0.97)}
 @keyframes loaderBtnPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 .loader-sub{font-size:13px;color:#fff;font-weight:500;text-shadow:0 1px 4px rgba(0,0,0,0.5);letter-spacing:0.04em}
+
+.toast{position:absolute;bottom:52px;left:18px;background:rgba(20,30,40,0.88);color:#fff;font-family:'Fredoka',sans-serif;font-size:14px;font-weight:500;letter-spacing:0.03em;padding:10px 16px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.28);backdrop-filter:blur(4px);z-index:10;opacity:0;transform:translateY(18px);transition:opacity 0.35s ease-out,transform 0.35s ease-out;pointer-events:none;max-width:280px}
+.toast.show{opacity:1;transform:translateY(0)}
 .pickup-burst{position:absolute;pointer-events:none;font-family:'Fredoka',sans-serif;font-weight:600;font-size:24px;color:#D8A045;text-shadow:0 2px 4px rgba(0,0,0,0.15);animation:pickupFloat 0.9s ease-out forwards}
 @keyframes pickupFloat{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}15%{opacity:1;transform:translate(-50%,-80%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-180%) scale(0.9)}}
 .canvas-wrap.flash::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,transparent 40%,rgba(255,210,100,0.25) 100%);pointer-events:none;animation:edgeFlash 0.5s ease-out}
@@ -275,6 +278,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       <audio class="bark-snd" preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/sfx/bark.mp3"></audio>
       <audio id="mower-sfx" loop preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/sfx/mower.mp3"></audio>
       <div class="win-flash" id="win-flash">¡Bien hecho, Bluey!</div>
+      <div class="toast" id="toast"></div>
     </div>
   </div>
 </section>
@@ -1652,6 +1656,18 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const canvasWrap=document.querySelector('.canvas-wrap');
   const statEl=document.getElementById('hud-stat');
 
+  // Non-blocking toast in the bottom-left of the canvas. Replaces the previous
+  // call's text and resets the auto-hide timer.
+  let toastTimer=null;
+  function showToast(text){
+    const t=document.getElementById('toast');
+    if(!t)return;
+    t.textContent=text;
+    t.classList.add('show');
+    if(toastTimer)clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove('show'),4500);
+  }
+
   // Floating text message at a world position (or screen position if y==null)
   function floatMessage(text,worldX,worldY,worldZ,color){
     const burst=document.createElement('div');
@@ -2009,10 +2025,9 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
           marquiTarget.tuft.cut=true;
           startTuftCutAnim(marquiTarget.tuft);
           tuftsCut++;
-          if(tuftsCut>=MARQUI_GOAL&&!bluewin&&!marquiwin){
-            marquiwin=true;
-            winFlash.textContent='¡Marqui terminó antes que tú!';
-            winFlash.classList.add('show');
+          if(tuftsCut>=MARQUI_GOAL&&!marquiwin){
+            marquiwin=true;  // just a "toast already shown" flag now; play continues
+            showToast('🌿 Marqui terminó de podar antes que tú… ¡sigue buscando huesos!');
           }
         }
         marquiMode='idle';
@@ -2362,7 +2377,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
           collected++;
           boneCountEl.textContent=`${collected} / ${totalBones}`;
           pickupEffect(m.x,m.mesh.position.y+0.4,m.z);
-          if(collected===totalBones&&!marquiwin&&!bluewin){
+          if(collected===totalBones&&!bluewin){
             bluewin=true;
             winFlash.textContent='¡Bien hecho, Bluey!';
             winFlash.classList.add('show');
