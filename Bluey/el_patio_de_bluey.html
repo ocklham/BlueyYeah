@@ -228,7 +228,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M7 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M9 9c1 1 2 2 3 2s2-1 3-2"/><path d="M9 15c1-1 2-2 3-2s2 1 3 2"/><path d="M12 11v2"/></svg>
         <span id="bone-count">0 / 0</span>
       </div>
-      <div class="hud-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moverse · <kbd>Espacio</kbd> saltar · <kbd>R</kbd> reiniciar</div>
+      <div class="hud-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moverse · <kbd>Espacio</kbd> saltar · <kbd>R</kbd> reiniciar · arrastrar/rueda cámara · <kbd>C</kbd> centrar</div>
       <input type="range" class="hud-music-slider" id="music-slider" min="0" max="100" value="55" aria-label="Volumen de la música" title="Volumen de la música">
       <button class="hud-music" id="music-btn" aria-label="Activar o silenciar música">
         <svg id="music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -298,14 +298,15 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const camera=new THREE.OrthographicCamera(-14,14,14,-14,0.1,250);
   const camOffset=new THREE.Vector3(24,28,24);
 
+  let zoomD=13;
+  const ZOOM_D_DEFAULT=13,ZOOM_MIN=6,ZOOM_MAX=22;
   function resize(){
     const w=canvas.clientWidth||1000;
     const h=canvas.clientHeight||600;
     renderer.setSize(w,h,false);
     const aspect=w/h;
-    const d=13;
-    camera.left=-d*aspect;camera.right=d*aspect;
-    camera.top=d;camera.bottom=-d;
+    camera.left=-zoomD*aspect;camera.right=zoomD*aspect;
+    camera.top=zoomD;camera.bottom=-zoomD;
     camera.updateProjectionMatrix();
   }
   resize();
@@ -1619,6 +1620,48 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   window.addEventListener('keyup',ku);
   canvas.addEventListener('click',()=>{canvas.focus();consumeHint()});
   canvas.addEventListener('touchstart',()=>{canvas.focus();consumeHint()},{passive:true});
+
+  // ===== CAMERA PAN + ZOOM =====
+  // panOffset is applied to both the camera position and the lookAt point, so the
+  // user can slide the framing around Bluey without losing the follow behavior.
+  // PAN_Y_FACTOR compensates for the iso elevation: 1 px of vertical drag would
+  // otherwise only translate the world by sin(elevation) px on screen.
+  const panOffset=new THREE.Vector3();
+  const PAN_Y_FACTOR=camOffset.length()/camOffset.y;  // ≈1.57 for (24,28,24)
+  let dragging=false,dragLastX=0,dragLastY=0;
+  canvas.addEventListener('mousedown',(e)=>{
+    if(e.button!==0)return;
+    dragging=true;
+    dragLastX=e.clientX;dragLastY=e.clientY;
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove',(e)=>{
+    if(!dragging)return;
+    const dx=e.clientX-dragLastX,dy=e.clientY-dragLastY;
+    dragLastX=e.clientX;dragLastY=e.clientY;
+    const wpp=(camera.right-camera.left)/(canvas.clientWidth||1000);
+    // Drag right → world moves right → camera moves left (along -camRight)
+    panOffset.x-=camRight.x*dx*wpp;
+    panOffset.z-=camRight.z*dx*wpp;
+    // Drag down → world moves down → camera moves "forward" in XZ (along +camDir)
+    panOffset.x+=camDir.x*dy*wpp*PAN_Y_FACTOR;
+    panOffset.z+=camDir.z*dy*wpp*PAN_Y_FACTOR;
+  });
+  window.addEventListener('mouseup',(e)=>{if(e.button===0)dragging=false});
+  canvas.addEventListener('wheel',(e)=>{
+    e.preventDefault();
+    const factor=e.deltaY>0?1.1:1/1.1;
+    zoomD=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX,zoomD*factor));
+    resize();
+  },{passive:false});
+  // Press C to recentre the camera and reset zoom
+  window.addEventListener('keydown',(e)=>{
+    if(e.key.toLowerCase()==='c'&&!e.repeat){
+      panOffset.set(0,0,0);
+      zoomD=ZOOM_D_DEFAULT;
+      resize();
+    }
+  });
   setTimeout(()=>canvas.focus(),200);
 
   function reset(){
@@ -1869,9 +1912,9 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       if(hoist.userData.spinning)hoist.userData.spinning.rotation.y+=dt*0.3;
       updateMarqui(dt);
       updateTufts(dt);
-      targetCam.copy(bluey.position).add(camOffset);
+      targetCam.copy(bluey.position).add(camOffset).add(panOffset);
       camera.position.lerp(targetCam,Math.min(1,dt*4.5));
-      camera.lookAt(bluey.position.x,0.5,bluey.position.z);
+      camera.lookAt(bluey.position.x+panOffset.x,0.5,bluey.position.z+panOffset.z);
       renderer.render(scene,camera);
       requestAnimationFrame(loop);
       return;
