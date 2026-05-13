@@ -1682,7 +1682,10 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     const dist=Math.sqrt(dx*dx+dz*dz);
 
     if(marquiMode==='walking'){
-      if(dist<0.7){
+      // Stop ~2 units before the target so the strimmer head (which juts out
+      // ~2.2 units in front of Marqui's center) lands on top of the tuft
+      // instead of past it.
+      if(dist<2.0){
         if(marquiTarget.tuft&&!marquiTarget.tuft.cut){
           marquiMode='cutting';
           marquiCutT=1.4;
