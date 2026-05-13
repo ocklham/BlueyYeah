@@ -36,8 +36,11 @@ html,body{font-family:'Nunito',sans-serif;color:var(--ink);background:var(--pape
 body{min-height:100vh;position:relative}
 
 .sky-bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,var(--sky-1) 0%,var(--sky-2) 45%,var(--paper) 78%,var(--paper) 100%);overflow:hidden}
-.sun{position:absolute;top:48px;right:8%;width:110px;height:110px;background:radial-gradient(circle at center,var(--sun) 0%,var(--sun) 60%,var(--sun-glow) 75%,transparent 100%);border-radius:50%;animation:sunPulse 5s ease-in-out infinite}
-@keyframes sunPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.06);filter:brightness(1.08)}}
+.sun{position:absolute;top:48px;right:8%;width:110px;height:110px;animation:sunPulse 5s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(255,207,92,0.45))}
+.sun .eye{transform-box:fill-box;transform-origin:center;animation:sunBlink 7s ease-in-out infinite}
+.sun .eye-r{animation-delay:0.05s}
+@keyframes sunPulse{0%,100%{transform:scale(1);filter:brightness(1) drop-shadow(0 0 28px rgba(255,207,92,0.45))}50%{transform:scale(1.06);filter:brightness(1.08) drop-shadow(0 0 36px rgba(255,207,92,0.55))}}
+@keyframes sunBlink{0%,92%,100%{transform:scaleY(1)}94%{transform:scaleY(0.1)}96%{transform:scaleY(1)}}
 .cloud{position:absolute;opacity:0.94;filter:drop-shadow(0 4px 8px rgba(94,134,160,0.08))}
 .cloud-1{top:8%;left:-180px;width:200px;animation:drift1 72s linear infinite}
 .cloud-2{top:18%;left:-150px;width:160px;animation:drift2 95s linear infinite;animation-delay:-30s}
@@ -46,11 +49,40 @@ body{min-height:100vh;position:relative}
 @keyframes drift1{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 250px))}}
 @keyframes drift2{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 250px))}}
 
+.bird-trail{position:absolute;left:-50px;width:32px;height:14px;pointer-events:none}
+.bird-trail-1{top:13%;animation:birdFly 26s linear infinite}
+.bird-trail-2{top:21%;animation:birdFly 34s linear infinite -10s}
+.bird-trail-3{top:10%;animation:birdFly 31s linear infinite -19s}
+.bird{display:block;width:100%;height:100%;animation:birdFlap 0.32s ease-in-out infinite;opacity:0.75}
+.bird-trail-2 .bird{animation-duration:0.4s}
+.bird-trail-3 .bird{animation-duration:0.28s}
+@keyframes birdFly{from{transform:translateX(0) translateY(0)}50%{transform:translateX(50vw) translateY(-12px)}to{transform:translateX(calc(100vw + 90px)) translateY(6px)}}
+@keyframes birdFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.42)}}
+
+.petal{position:absolute;top:-40px;width:9px;height:18px;background:var(--jacaranda);border-radius:60% 60% 50% 50% / 70% 70% 30% 30%;opacity:0;pointer-events:none;will-change:transform,opacity}
+.petal-1{left:8%;animation:petalFall 24s linear infinite}
+.petal-2{left:33%;animation:petalFall 30s linear infinite -7s}
+.petal-3{left:58%;animation:petalFall 27s linear infinite -16s}
+.petal-4{left:78%;animation:petalFall 32s linear infinite -22s}
+.petal-5{left:92%;animation:petalFall 26s linear infinite -11s}
+@keyframes petalFall{
+  0%{transform:translateY(-40px) translateX(0) rotate(0deg);opacity:0}
+  8%{opacity:0.65}
+  25%{transform:translateY(25vh) translateX(35px) rotate(90deg)}
+  50%{transform:translateY(50vh) translateX(-30px) rotate(180deg)}
+  75%{transform:translateY(75vh) translateX(30px) rotate(280deg)}
+  92%{opacity:0.65}
+  100%{transform:translateY(108vh) translateX(0) rotate(360deg);opacity:0}
+}
+
 .paw-deco{position:absolute;opacity:0.07;pointer-events:none}
 .paw-deco svg{width:100%;height:100%;fill:var(--bluey-dark)}
 .paw-1{top:62%;left:4%;width:80px;transform:rotate(-22deg)}
 .paw-2{top:74%;right:6%;width:64px;transform:rotate(18deg)}
 .paw-3{top:88%;left:14%;width:50px;transform:rotate(-8deg)}
+.paw-4{top:38%;right:14%;width:42px;transform:rotate(40deg)}
+.paw-5{top:56%;right:22%;width:56px;transform:rotate(-15deg)}
+.paw-6{top:80%;right:3%;width:38px;transform:rotate(8deg)}
 
 .container{max-width:1180px;margin:0 auto;padding:0 32px}
 
@@ -141,16 +173,42 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
 <body>
 
 <div class="sky-bg">
-  <div class="sun"></div>
+  <svg class="sun" viewBox="0 0 120 120" aria-hidden="true">
+    <defs>
+      <radialGradient id="sun-grad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#FFCF5C"/>
+        <stop offset="58%" stop-color="#FFCF5C"/>
+        <stop offset="75%" stop-color="#FFE6A0"/>
+        <stop offset="100%" stop-color="#FFE6A0" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="60" cy="60" r="55" fill="url(#sun-grad)"/>
+    <ellipse class="eye eye-l" cx="48" cy="56" rx="3.5" ry="5.5" fill="#2A3B4D"/>
+    <ellipse class="eye eye-r" cx="72" cy="56" rx="3.5" ry="5.5" fill="#2A3B4D"/>
+    <ellipse cx="42" cy="70" rx="5" ry="3" fill="#FF8B6E" opacity="0.55"/>
+    <ellipse cx="78" cy="70" rx="5" ry="3" fill="#FF8B6E" opacity="0.55"/>
+    <path d="M 48 72 Q 60 82 72 72" stroke="#2A3B4D" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  </svg>
   <svg class="cloud cloud-1" viewBox="0 0 200 80"><ellipse cx="50" cy="50" rx="40" ry="26" fill="white"/><ellipse cx="100" cy="46" rx="50" ry="32" fill="white"/><ellipse cx="150" cy="52" rx="38" ry="24" fill="white"/></svg>
   <svg class="cloud cloud-2" viewBox="0 0 200 80"><ellipse cx="60" cy="48" rx="42" ry="28" fill="white"/><ellipse cx="120" cy="50" rx="46" ry="26" fill="white"/></svg>
   <svg class="cloud cloud-3" viewBox="0 0 200 80"><ellipse cx="50" cy="50" rx="38" ry="24" fill="white"/><ellipse cx="100" cy="45" rx="52" ry="30" fill="white"/><ellipse cx="155" cy="52" rx="40" ry="26" fill="white"/></svg>
   <svg class="cloud cloud-4" viewBox="0 0 200 80"><ellipse cx="60" cy="46" rx="36" ry="22" fill="white"/><ellipse cx="115" cy="50" rx="42" ry="26" fill="white"/></svg>
+  <div class="bird-trail bird-trail-1"><svg class="bird" viewBox="0 0 28 12"><path d="M 2 8 Q 7 2 14 7 Q 21 2 26 8" stroke="#2A3B4D" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="bird-trail bird-trail-2"><svg class="bird" viewBox="0 0 28 12"><path d="M 2 8 Q 7 2 14 7 Q 21 2 26 8" stroke="#2A3B4D" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="bird-trail bird-trail-3"><svg class="bird" viewBox="0 0 28 12"><path d="M 2 8 Q 7 2 14 7 Q 21 2 26 8" stroke="#2A3B4D" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="petal petal-1"></div>
+  <div class="petal petal-2"></div>
+  <div class="petal petal-3"></div>
+  <div class="petal petal-4"></div>
+  <div class="petal petal-5"></div>
 </div>
 
 <div class="paw-deco paw-1"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
 <div class="paw-deco paw-2"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
 <div class="paw-deco paw-3"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+<div class="paw-deco paw-4"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+<div class="paw-deco paw-5"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+<div class="paw-deco paw-6"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
 
 <div class="container">
 
