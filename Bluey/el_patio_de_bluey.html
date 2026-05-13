@@ -91,6 +91,12 @@ h1 .bluey-mark span:nth-child(5){color:#6FC0DA;animation-delay:0.43s}
 .hud-music:active{transform:translateY(0) scale(0.96)}
 .hud-music svg{width:18px;height:18px}
 .hud-music.muted{color:var(--ink-soft);opacity:0.7}
+.hud-music-slider{position:absolute;bottom:24px;right:140px;width:110px;height:22px;background:rgba(255,255,255,0.92);border-radius:14px;box-shadow:0 4px 12px rgba(42,59,77,0.1);backdrop-filter:blur(6px);-webkit-appearance:none;appearance:none;cursor:pointer;outline:none;padding:0 10px;box-sizing:border-box}
+.hud-music-slider::-webkit-slider-runnable-track{height:4px;background:linear-gradient(to right,var(--bluey-dark) 0%,var(--bluey-dark) var(--fill,55%),rgba(59,120,148,0.18) var(--fill,55%),rgba(59,120,148,0.18) 100%);border-radius:2px}
+.hud-music-slider::-moz-range-track{height:4px;background:linear-gradient(to right,var(--bluey-dark) 0%,var(--bluey-dark) var(--fill,55%),rgba(59,120,148,0.18) var(--fill,55%),rgba(59,120,148,0.18) 100%);border-radius:2px}
+.hud-music-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--bluey-dark);cursor:pointer;margin-top:-5px;box-shadow:0 1px 3px rgba(42,59,77,0.25)}
+.hud-music-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--bluey-dark);cursor:pointer;border:none;box-shadow:0 1px 3px rgba(42,59,77,0.25)}
+.hud-music-slider.disabled{opacity:0.4;pointer-events:none}
 .pickup-burst{position:absolute;pointer-events:none;font-family:'Fredoka',sans-serif;font-weight:600;font-size:24px;color:#D8A045;text-shadow:0 2px 4px rgba(0,0,0,0.15);animation:pickupFloat 0.9s ease-out forwards}
 @keyframes pickupFloat{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}15%{opacity:1;transform:translate(-50%,-80%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-180%) scale(0.9)}}
 .canvas-wrap.flash::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,transparent 40%,rgba(255,210,100,0.25) 100%);pointer-events:none;animation:edgeFlash 0.5s ease-out}
@@ -164,6 +170,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         <span id="bone-count">0 / 0</span>
       </div>
       <div class="hud-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moverse · <kbd>Espacio</kbd> saltar · <kbd>R</kbd> reiniciar</div>
+      <input type="range" class="hud-music-slider" id="music-slider" min="0" max="100" value="55" aria-label="Volumen de la música" title="Volumen de la música">
       <button class="hud-music" id="music-btn" aria-label="Activar o silenciar música">
         <svg id="music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         <span id="music-label">Música</span>
@@ -1177,7 +1184,11 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   let musicEnabled=true,musicStarted=false;
   const musicBtn=document.getElementById('music-btn');
   const musicLabel=document.getElementById('music-label');
-  const MUSIC_VOL=0.55;
+  let musicVolume=0.55;
+  try{
+    const saved=parseFloat(localStorage.getItem('blueyMusicVol'));
+    if(saved>=0&&saved<=1)musicVolume=saved;
+  }catch(_){}
   const MUSIC_FADE=4.0;  // crossfade window in seconds before the active track ends
   const bgMusics=[
     document.getElementById('bg-music'),
@@ -1185,7 +1196,29 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   ];
   let activeBg=0;
   bgMusics.forEach(a=>{a.volume=0});
-  bgMusics[activeBg].volume=MUSIC_VOL;
+  bgMusics[activeBg].volume=musicVolume;
+
+  // Music volume slider (affects bg music only — barks, mower and SFX keep their own levels)
+  const musicSlider=document.getElementById('music-slider');
+  musicSlider.value=Math.round(musicVolume*100);
+  musicSlider.style.setProperty('--fill',(musicVolume*100)+'%');
+  musicSlider.addEventListener('input',(e)=>{
+    musicVolume=e.target.value/100;
+    musicSlider.style.setProperty('--fill',e.target.value+'%');
+    try{localStorage.setItem('blueyMusicVol',String(musicVolume))}catch(_){}
+    // Apply live: if not in the crossfade window, the active track gets the new
+    // volume immediately. If we ARE inside the crossfade, updateMusicCrossfade
+    // will pick up the new musicVolume on the next frame.
+    const cur=bgMusics[activeBg],nxt=bgMusics[1-activeBg];
+    const dur=cur.duration;
+    if(!dur||isNaN(dur)||(dur-cur.currentTime)>MUSIC_FADE){
+      cur.volume=musicVolume;
+      nxt.volume=0;
+    }
+  });
+  // Don't let the slider steal keyboard focus from the game after interaction
+  musicSlider.addEventListener('mouseup',()=>canvas.focus());
+  musicSlider.addEventListener('touchend',()=>canvas.focus());
 
   function initAudio(){
     if(audioCtx)return;
@@ -1216,7 +1249,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   function startMusic(){
     if(musicStarted)return;
     musicStarted=true;
-    bgMusics[activeBg].volume=MUSIC_VOL;
+    bgMusics[activeBg].volume=musicVolume;
     bgMusics[1-activeBg].volume=0;
     const p=bgMusics[activeBg].play();
     if(p&&p.catch)p.catch(()=>{musicStarted=false});
@@ -1244,12 +1277,12 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         if(p&&p.catch)p.catch(()=>{});
       }
       const k=Math.max(0,Math.min(1,remaining/MUSIC_FADE));  // 1 → 0 as we approach the end
-      cur.volume=MUSIC_VOL*k;
-      nxt.volume=MUSIC_VOL*(1-k);
+      cur.volume=musicVolume*k;
+      nxt.volume=musicVolume*(1-k);
     }
     if(remaining<=0.05||cur.ended){
       try{cur.pause();cur.currentTime=0}catch(_){}
-      cur.volume=MUSIC_VOL;   // pre-arm for when it's next picked as active
+      cur.volume=musicVolume;   // pre-arm for when it's next picked as active
       activeBg=1-activeBg;
     }
   }
@@ -1375,10 +1408,12 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   function updateMusicBtn(){
     if(musicEnabled){
       musicBtn.classList.remove('muted');
+      musicSlider.classList.remove('disabled');
       musicLabel.textContent='Música';
       document.getElementById('music-icon').innerHTML='<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
     }else{
       musicBtn.classList.add('muted');
+      musicSlider.classList.add('disabled');
       musicLabel.textContent='Silencio';
       document.getElementById('music-icon').innerHTML='<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><line x1="3" y1="3" x2="21" y2="21"/>';
     }
