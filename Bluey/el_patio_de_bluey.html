@@ -952,11 +952,14 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     }
     const armL=mArm(0.6,M.shirt);
     const armR=mArm(-0.6,M.shirt);
-    // Both arms reach forward to grip the strimmer (active mowing pose)
-    armR.rotation.x=1.1;
+    // Both arms reach forward to grip the strimmer (active mowing pose).
+    // rotation.x is NEGATIVE because in this model the arm hangs along -Y, so a
+    // negative X rotation swings it toward +Z (Marqui's forward), where the
+    // strimmer handle sits.
+    armR.rotation.x=-1.1;
     armR.rotation.z=0.25;
     armR.position.z=0.18;
-    armL.rotation.x=0.85;
+    armL.rotation.x=-0.85;
     armL.rotation.z=-0.2;
     armL.position.z=0.22;
     mBody.add(armL,armR);
@@ -1842,17 +1845,18 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     marquiYaw+=dyaw*Math.min(1,dt*6);
     marqui.group.rotation.y=marquiYaw;
 
-    // Walk animation — legs swing, body bobs
+    // Walk animation — legs swing, body bobs. armL stays in the strimmer grip
+    // pose (~-0.85 rad) with only a tiny swing, so both hands keep the tool.
     if(marquiMode==='walking'){
       const sw=Math.sin(marquiWalkPhase)*0.4;
       marqui.legL.rotation.x=sw;
       marqui.legR.rotation.x=-sw;
-      marqui.armL.rotation.x=-sw*0.6;
+      marqui.armL.rotation.x=-0.85+sw*0.15;
       marqui.body.position.y=0.8+Math.abs(Math.sin(marquiWalkPhase*2))*0.04;
     }else{
       marqui.legL.rotation.x*=0.85;
       marqui.legR.rotation.x*=0.85;
-      marqui.armL.rotation.x*=0.85;
+      marqui.armL.rotation.x+=(-0.85-marqui.armL.rotation.x)*0.15;
       marqui.body.position.y+=(0.8-marqui.body.position.y)*0.15;
       // Idle disc spin (slow)
       if(marquiMode!=='cutting')marqui.cuttingHead.rotation.y+=dt*3;
