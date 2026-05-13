@@ -130,6 +130,16 @@ h1 .bluey-mark span:nth-child(5){color:#6FC0DA;animation-delay:0.43s}
 .hud-music-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--bluey-dark);cursor:pointer;margin-top:-5px;box-shadow:0 1px 3px rgba(42,59,77,0.25)}
 .hud-music-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--bluey-dark);cursor:pointer;border:none;box-shadow:0 1px 3px rgba(42,59,77,0.25)}
 .hud-music-slider.disabled{opacity:0.4;pointer-events:none}
+
+.loader{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(180deg,#BFE4F0 0%,#D9EDF2 50%,#E8F0DA 100%);z-index:5;transition:opacity 0.5s ease-out;font-family:'Fredoka',sans-serif;pointer-events:none}
+.loader.hidden{opacity:0}
+.loader-paws{display:flex;gap:14px}
+.loader-paw{width:38px;height:38px;animation:loaderPawBounce 1.0s ease-in-out infinite}
+.loader-paw:nth-child(2){animation-delay:0.15s}
+.loader-paw:nth-child(3){animation-delay:0.3s}
+.loader-paw svg{width:100%;height:100%;fill:var(--bluey-dark);opacity:0.85}
+@keyframes loaderPawBounce{0%,100%{transform:scale(0.7) translateY(0);opacity:0.35}50%{transform:scale(1.0) translateY(-6px);opacity:1}}
+.loader-text{font-size:18px;color:var(--bluey-dark);font-weight:500;letter-spacing:0.05em}
 .pickup-burst{position:absolute;pointer-events:none;font-family:'Fredoka',sans-serif;font-weight:600;font-size:24px;color:#D8A045;text-shadow:0 2px 4px rgba(0,0,0,0.15);animation:pickupFloat 0.9s ease-out forwards}
 @keyframes pickupFloat{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}15%{opacity:1;transform:translate(-50%,-80%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-180%) scale(0.9)}}
 .canvas-wrap.flash::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,transparent 40%,rgba(255,210,100,0.25) 100%);pointer-events:none;animation:edgeFlash 0.5s ease-out}
@@ -223,6 +233,14 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   <div class="game-frame">
     <div class="canvas-wrap">
       <canvas id="game" tabindex="0"></canvas>
+      <div class="loader" id="loader">
+        <div class="loader-paws">
+          <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+          <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+          <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+        </div>
+        <div class="loader-text">Cargando el patio…</div>
+      </div>
       <div class="hud-tag hud-hint" id="hud-hint">Haz clic para jugar</div>
       <div class="hud-tag hud-stat" id="hud-stat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M7 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M9 9c1 1 2 2 3 2s2-1 3-2"/><path d="M9 15c1-1 2-2 3-2s2 1 3 2"/><path d="M12 11v2"/></svg>
@@ -2114,8 +2132,17 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     updateMusicCrossfade();
 
     renderer.render(scene,camera);
+    if(firstRender){
+      firstRender=false;
+      const ld=document.getElementById('loader');
+      if(ld){
+        setTimeout(()=>ld.classList.add('hidden'),150);
+        setTimeout(()=>{ld.style.display='none'},800);
+      }
+    }
     requestAnimationFrame(loop);
   }
+  let firstRender=true;
   requestAnimationFrame(loop);
 })();
 </script>
