@@ -168,7 +168,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         <svg id="music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         <span id="music-label">Música</span>
       </button>
-      <audio id="bg-music" loop preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/Backyard_Chase.mp3"></audio>
+      <audio id="bg-music" preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/Backyard_Chase.mp3"></audio>
+      <audio id="bg-music-2" preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/Backyard_Chase2.mp3"></audio>
       <audio class="bark-snd" preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/sfx/bark.mp3"></audio>
       <audio class="bark-snd" preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/sfx/bark.mp3"></audio>
       <audio class="bark-snd" preload="auto" src="https://raw.githubusercontent.com/ocklham/BlueyYeah/main/Bluey/sfx/bark.mp3"></audio>
@@ -1169,14 +1170,22 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const keys={};
 
   // ===== AUDIO SYSTEM =====
-  // Music is the Backyard_Chase.mp3 streamed from the GitHub raw URL (see <audio id="bg-music">).
-  // SFX (pickup, boing) remain Web Audio oscillators because they react to gameplay events.
+  // Two background music tracks alternate with a crossfade near each track's end
+  // (see updateMusicCrossfade). SFX (pickup, boing) remain Web Audio oscillators
+  // because they react to gameplay events.
   let audioCtx=null,sfxGain=null;
   let musicEnabled=true,musicStarted=false;
   const musicBtn=document.getElementById('music-btn');
   const musicLabel=document.getElementById('music-label');
-  const bgMusic=document.getElementById('bg-music');
-  bgMusic.volume=0.55;
+  const MUSIC_VOL=0.55;
+  const MUSIC_FADE=4.0;  // crossfade window in seconds before the active track ends
+  const bgMusics=[
+    document.getElementById('bg-music'),
+    document.getElementById('bg-music-2')
+  ];
+  let activeBg=0;
+  bgMusics.forEach(a=>{a.volume=0});
+  bgMusics[activeBg].volume=MUSIC_VOL;
 
   function initAudio(){
     if(audioCtx)return;
@@ -1207,12 +1216,42 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   function startMusic(){
     if(musicStarted)return;
     musicStarted=true;
-    const p=bgMusic.play();
+    bgMusics[activeBg].volume=MUSIC_VOL;
+    bgMusics[1-activeBg].volume=0;
+    const p=bgMusics[activeBg].play();
     if(p&&p.catch)p.catch(()=>{musicStarted=false});
   }
   function stopMusic(){
     musicStarted=false;
-    bgMusic.pause();
+    bgMusics.forEach(a=>a.pause());
+  }
+
+  // Crossfade between bgMusics[0] and bgMusics[1] in the last MUSIC_FADE seconds
+  // of whichever track is currently active. When the active track finishes, the
+  // other one becomes active and the cycle continues forever.
+  function updateMusicCrossfade(){
+    if(!musicStarted||!musicEnabled)return;
+    const cur=bgMusics[activeBg];
+    const nxt=bgMusics[1-activeBg];
+    const dur=cur.duration;
+    if(!dur||isNaN(dur)||!isFinite(dur))return;
+    const remaining=dur-cur.currentTime;
+    if(remaining<=MUSIC_FADE){
+      if(nxt.paused){
+        try{nxt.currentTime=0}catch(_){}
+        nxt.volume=0;
+        const p=nxt.play();
+        if(p&&p.catch)p.catch(()=>{});
+      }
+      const k=Math.max(0,Math.min(1,remaining/MUSIC_FADE));  // 1 → 0 as we approach the end
+      cur.volume=MUSIC_VOL*k;
+      nxt.volume=MUSIC_VOL*(1-k);
+    }
+    if(remaining<=0.05||cur.ended){
+      try{cur.pause();cur.currentTime=0}catch(_){}
+      cur.volume=MUSIC_VOL;   // pre-arm for when it's next picked as active
+      activeBg=1-activeBg;
+    }
   }
 
   // ===== BARK SFX =====
@@ -1800,6 +1839,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
 
     maybeRandomBark(dt);
     updateBarkAnim(dt);
+    updateMusicCrossfade();
 
     renderer.render(scene,camera);
     requestAnimationFrame(loop);
