@@ -262,7 +262,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M7 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M9 9c1 1 2 2 3 2s2-1 3-2"/><path d="M9 15c1-1 2-2 3-2s2 1 3 2"/><path d="M12 11v2"/></svg>
         <span id="bone-count">0 / 0</span>
       </div>
-      <div class="hud-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moverse · <kbd>Espacio</kbd> saltar · <kbd>R</kbd> reiniciar · arrastrar/rueda cámara · <kbd>C</kbd> centrar</div>
+      <div class="hud-tip"><kbd>WASD</kbd>·<kbd>Espacio</kbd>·<kbd>R</kbd>·<kbd>E</kbd>·<kbd>Z</kbd>·<kbd>C</kbd> · arrastrar/rueda cámara</div>
       <input type="range" class="hud-music-slider" id="music-slider" min="0" max="100" value="55" aria-label="Volumen de la música" title="Volumen de la música">
       <button class="hud-music" id="music-btn" aria-label="Activar o silenciar música">
         <svg id="music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -1140,12 +1140,66 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     mBody.position.y=0.8;
     m.add(mBody);
 
-    return {group:m,body:mBody,legL,legR,armL,armR,strimmer,cuttingHead};
+    return {group:m,body:mBody,head,legL,legR,armL,armR,strimmer,cuttingHead};
   }
 
   const marqui=createMarqui();
   marqui.group.position.set(halfW-7,0,halfW-3);
   scene.add(marqui.group);
+
+  // ===== BINGO (Bluey's little sister, napping behind the house) =====
+  const bingoOrange=new THREE.MeshLambertMaterial({color:0xE8A875});
+  const bingoLight=new THREE.MeshLambertMaterial({color:0xF5C99E});
+  function createBingo(){
+    const g=new THREE.Group();
+    const body=new THREE.Group();
+    // Tubby torso
+    body.add(box(1.0,0.55,0.55,bingoOrange));
+    // Cream tummy
+    const belly=box(0.85,0.22,0.42,bingoLight);
+    belly.position.y=-0.2;body.add(belly);
+    // Head
+    const head=box(0.62,0.6,0.6,bingoOrange);
+    head.position.set(0.7,0.05,0);body.add(head);
+    // Snout
+    const snout=box(0.35,0.3,0.45,bingoLight);
+    snout.position.set(1.0,-0.05,0);body.add(snout);
+    // Nose
+    const nose=box(0.16,0.14,0.18,M.bk);
+    nose.position.set(1.18,0.05,0);body.add(nose);
+    // Closed eyes (just dark line)
+    const eyeL=box(0.06,0.04,0.12,M.bk);
+    eyeL.position.set(0.85,0.18,0.2);body.add(eyeL);
+    const eyeR=eyeL.clone();eyeR.position.z=-0.2;body.add(eyeR);
+    // Ears (Heeler-style triangles)
+    const earL=box(0.18,0.36,0.16,bingoOrange);
+    earL.position.set(0.55,0.45,0.22);body.add(earL);
+    const earR=earL.clone();earR.position.z=-0.22;body.add(earR);
+    // Stubby tail
+    const tail=box(0.25,0.25,0.25,bingoOrange);
+    tail.position.set(-0.55,0.15,0);body.add(tail);
+    // Legs tucked
+    const legA=box(0.2,0.35,0.2,bingoOrange);
+    legA.position.set(0.35,-0.4,0.22);body.add(legA);
+    const legB=legA.clone();legB.position.z=-0.22;body.add(legB);
+    const legC=legA.clone();legC.position.x=-0.3;body.add(legC);
+    const legD=legA.clone();legD.position.set(-0.3,-0.4,-0.22);body.add(legD);
+    // Tilt the whole body onto its side for sleeping
+    body.rotation.z=Math.PI*0.45;
+    body.position.y=0.4;
+    g.add(body);
+    // Soft shadow
+    const sh=new THREE.Mesh(new THREE.CircleGeometry(0.55,18),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25}));
+    sh.rotation.x=-Math.PI/2;sh.position.y=0.04;
+    g.add(sh);
+    return {group:g,body};
+  }
+  const bingo=createBingo();
+  // Tuck behind the house — past the corner, hidden from the player's starting spot
+  bingo.group.position.set(-halfW+2.8,0,-halfW+8.5);
+  bingo.group.rotation.y=Math.PI*0.7;
+  scene.add(bingo.group);
+  let bingoNearT=0,bingoZzzT=2,bingoAwakeT=0,bingoNoticed=false;
 
   // ===== GRASS TUFTS (briznas) =====
   // Tiny flower colors for the "flowery" tuft variant — Lambert to match the rest of the world.
@@ -1581,6 +1635,14 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const camDir=new THREE.Vector3(-camOffset.x,0,-camOffset.z).normalize();
   const camRight=new THREE.Vector3().crossVectors(camDir,new THREE.Vector3(0,1,0)).normalize();
   let foxYaw=0,foxYawTarget=0,foxY=0,vy=0,grounded=true,walkPhase=0,speed=0;
+  let fenceJumpT=0;  // > 0 while Bluey is outside the yard after a momentum-jump
+  let spinT=0;       // > 0 while doing the "chasing tail" easter egg
+  let napActive=false; // siesta mode
+  let napMusicPrev=null; // saved music volume for nap
+  let napZzzT=0;     // timer for periodic Zzz spawns during nap
+  let recentMarquiHits=0,marquiHitDecayT=0,marquiAngryT=0; // anger meter
+  let tuftsCut=0;    // how many tufts Marqui has cut; boss timer
+  let bluewin=false,marquiwin=false; // end states
   const totalBones=bones.length;
   let collected=0;
   boneCountEl.textContent=`0 / ${totalBones}`;
@@ -1589,6 +1651,31 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const knockback={active:false,vx:0,vz:0,t:0};
   const canvasWrap=document.querySelector('.canvas-wrap');
   const statEl=document.getElementById('hud-stat');
+
+  // Floating text message at a world position (or screen position if y==null)
+  function floatMessage(text,worldX,worldY,worldZ,color){
+    const burst=document.createElement('div');
+    burst.className='pickup-burst';
+    burst.textContent=text;
+    if(color)burst.style.color=color;
+    burst.style.fontSize='18px';
+    burst.style.whiteSpace='nowrap';
+    if(worldX!=null){
+      const v=new THREE.Vector3(worldX,worldY,worldZ);
+      v.project(camera);
+      const rect=canvas.getBoundingClientRect();
+      const sx=(v.x*0.5+0.5)*rect.width;
+      const sy=(-v.y*0.5+0.5)*rect.height;
+      burst.style.left=sx+'px';
+      burst.style.top=sy+'px';
+    }else{
+      burst.style.left='50%';
+      burst.style.top='50%';
+      burst.style.transform='translate(-50%,-50%)';
+    }
+    canvasWrap.appendChild(burst);
+    setTimeout(()=>burst.remove(),1400);
+  }
 
   function pickupEffect(worldX,worldY,worldZ){
     // Project world position to screen for the floating "+1"
@@ -1620,6 +1707,13 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   }
 
   function triggerKnockback(fromX,fromZ){
+    // Anger meter: each fresh hit pushes the counter up; it decays after 20s of peace
+    recentMarquiHits++;
+    marquiHitDecayT=20;
+    if(recentMarquiHits>=3&&marquiAngryT<=0){
+      marquiAngryT=10;  // angry for 10s
+      floatMessage('¡Eh, déjame trabajar!',marqui.group.position.x,3.2,marqui.group.position.z,'#8E2F22');
+    }
     const dx=bluey.position.x-fromX;
     const dz=bluey.position.z-fromZ;
     const d=Math.sqrt(dx*dx+dz*dz)||1;
@@ -1656,6 +1750,10 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     if(!k)return;
     keys[k]=true;
     consumeHint();
+    // Movement or jump while napping wakes Bluey up
+    if(napActive&&(['w','a','s','d','space'].includes(k))){
+      toggleNap();
+    }
     // Movement keys trigger auto-recenter on the camera if there's any pan offset
     if(['w','a','s','d'].includes(k)&&!recentering&&(panOffset.x*panOffset.x+panOffset.z*panOffset.z>0.04)){
       recentering=true;
@@ -1716,16 +1814,46 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     zoomD=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX,zoomD*factor));
     resize();
   },{passive:false});
-  // Press C to recentre the camera and reset zoom
+  // Press C to recentre the camera and reset zoom, E to chase tail, Z to nap
   window.addEventListener('keydown',(e)=>{
-    if(e.key.toLowerCase()==='c'&&!e.repeat){
+    if(e.repeat)return;
+    const k=e.key.toLowerCase();
+    if(k==='c'){
       panOffset.set(0,0,0);
       panVel.set(0,0,0);
       recentering=false;
       zoomD=ZOOM_D_DEFAULT;
       resize();
+    }else if(k==='e'&&spinT<=0&&!knockback.active&&!napActive&&firstInput){
+      spinT=1.0;
+      playBark('happy');
+      if(Math.random()<0.5)setTimeout(()=>playBark('yip'),230);
+    }else if(k==='z'&&!knockback.active&&firstInput){
+      toggleNap();
     }
   });
+
+  function toggleNap(){
+    napActive=!napActive;
+    if(napActive){
+      napMusicPrev=musicVolume;
+      musicVolume*=0.3;
+      bgMusics.forEach(a=>{if(!a.paused)a.volume=musicVolume});
+      if(typeof musicSlider!=='undefined'&&musicSlider){
+        musicSlider.value=Math.round(musicVolume*100);
+        musicSlider.style.setProperty('--fill',musicSlider.value+'%');
+      }
+      floatMessage('Zzz…',bluey.position.x,2.2,bluey.position.z,'#3B7894');
+    }else{
+      musicVolume=napMusicPrev!=null?napMusicPrev:0.55;
+      bgMusics.forEach(a=>{if(!a.paused)a.volume=musicVolume});
+      if(typeof musicSlider!=='undefined'&&musicSlider){
+        musicSlider.value=Math.round(musicVolume*100);
+        musicSlider.style.setProperty('--fill',musicSlider.value+'%');
+      }
+      playBark('yip');
+    }
+  }
 
   // Called once per frame before either camera-follow block runs. Handles two
   // independent forces on panOffset:
@@ -1778,7 +1906,13 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     boneCountEl.textContent=`0 / ${totalBones}`;
     winFlash.classList.remove('show');
     winFlash.textContent='¡Bien hecho, Bluey!';
+    bluewin=false;marquiwin=false;tuftsCut=0;
+    recentMarquiHits=0;marquiHitDecayT=0;marquiAngryT=0;
+    fenceJumpT=0;spinT=0;
+    bingoNearT=0;bingoAwakeT=0;bingoNoticed=false;
+    if(napActive)toggleNap();
   }
+  const MARQUI_GOAL=20;  // tufts Marqui needs to cut to "finish" first
   bluey.position.set(2,0,2);
 
   // ===== MARQUI AI =====
@@ -1865,18 +1999,39 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       }
     }else if(marquiMode==='cutting'){
       marquiCutT-=dt;
-      // Spin the disc fast while cutting
-      marqui.cuttingHead.rotation.y+=dt*25;
-      // Sweep the strimmer side-to-side for active feel
-      marqui.strimmer.rotation.y=0.18+Math.sin(performance.now()*0.012)*0.35;
+      // Spin the disc fast while cutting (extra fast when angry)
+      marqui.cuttingHead.rotation.y+=dt*(marquiAngryT>0?38:25);
+      // Sweep the strimmer side-to-side for active feel (wider sweep when angry)
+      const sweepAmp=marquiAngryT>0?0.55:0.35;
+      marqui.strimmer.rotation.y=0.18+Math.sin(performance.now()*0.012)*sweepAmp;
       if(marquiCutT<=0){
         if(marquiTarget.tuft&&!marquiTarget.tuft.cut){
           marquiTarget.tuft.cut=true;
           startTuftCutAnim(marquiTarget.tuft);
+          tuftsCut++;
+          if(tuftsCut>=MARQUI_GOAL&&!bluewin&&!marquiwin){
+            marquiwin=true;
+            winFlash.textContent='¡Marqui terminó antes que tú!';
+            winFlash.classList.add('show');
+          }
         }
         marquiMode='idle';
         setTimeout(()=>{if(marquiMode==='idle')pickMarquiTarget()},300+Math.random()*500);
       }
+    }
+    // Anger timers: decay the hit counter after a peaceful spell, and tick down anger
+    if(marquiHitDecayT>0){
+      marquiHitDecayT-=dt;
+      if(marquiHitDecayT<=0)recentMarquiHits=0;
+    }
+    if(marquiAngryT>0){
+      marquiAngryT-=dt;
+      // Head bobs when angry — small jittery tilt on Z and X
+      marqui.head.rotation.z=Math.sin(performance.now()*0.02)*0.18;
+      marqui.head.rotation.x=0.12+Math.sin(performance.now()*0.018)*0.08;
+    }else{
+      marqui.head.rotation.z*=0.88;
+      marqui.head.rotation.x*=0.88;
     }
 
     // Smooth yaw
@@ -1903,6 +2058,45 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       if(marquiMode!=='cutting')marqui.cuttingHead.rotation.y+=dt*3;
     }
     setMowerActive(marquiMode==='cutting');
+  }
+
+  function updateBingo(dt){
+    const bdx=bluey.position.x-bingo.group.position.x;
+    const bdz=bluey.position.z-bingo.group.position.z;
+    const bd2=bdx*bdx+bdz*bdz;
+    const close=bd2<9;       // within 3 units → Bluey notices Bingo
+    const veryClose=bd2<4;   // within 2 units → counts toward wake-up
+    if(close&&!bingoNoticed){
+      bingoNoticed=true;
+      floatMessage('¡Bingo está echándose la siesta!',bingo.group.position.x,2.4,bingo.group.position.z,'#3B7894');
+    }
+    if(bd2>30)bingoNoticed=false;  // re-notice if you wander off and come back
+    if(veryClose&&bingoAwakeT<=0)bingoNearT+=dt;
+    else bingoNearT=Math.max(0,bingoNearT-dt*0.5);
+    // Wake up after 3s of Bluey hovering close
+    if(bingoNearT>=3&&bingoAwakeT<=0){
+      bingoAwakeT=2.0;
+      bingoNearT=0;
+      playBark('happy');
+      floatMessage('¡Yip!',bingo.group.position.x,2.6,bingo.group.position.z,'#E89B73');
+    }
+    // Zzz puff (less often when far)
+    bingoZzzT-=dt;
+    if(bingoZzzT<=0&&bingoAwakeT<=0){
+      floatMessage('Z',bingo.group.position.x+(Math.random()-0.5)*0.4,1.8+Math.random()*0.4,bingo.group.position.z,'#3B7894');
+      bingoZzzT=close?1.5+Math.random()*0.8:4+Math.random()*2;
+    }
+    // Awake animation: sit up briefly
+    if(bingoAwakeT>0){
+      bingoAwakeT-=dt;
+      bingo.body.rotation.z+=(0-bingo.body.rotation.z)*Math.min(1,dt*6);
+      bingo.body.position.y+=(0.7-bingo.body.position.y)*Math.min(1,dt*6);
+    }else{
+      bingo.body.rotation.z+=(Math.PI*0.45-bingo.body.rotation.z)*Math.min(1,dt*5);
+      bingo.body.position.y+=(0.4-bingo.body.position.y)*Math.min(1,dt*5);
+      // Slow breathing
+      bingo.body.scale.x=1+Math.sin(performance.now()*0.0015)*0.035;
+    }
   }
 
   function updateTufts(dt){
@@ -2019,6 +2213,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       if(hoist.userData.spinning)hoist.userData.spinning.rotation.y+=dt*0.3;
       updateMarqui(dt);
       updateTufts(dt);
+      updateBingo(dt);
       targetCam.copy(bluey.position).add(camOffset).add(panOffset);
       // Knockback flings Bluey at 16 u/s; ease the chase so the camera doesn't jolt
       camera.position.lerp(targetCam,Math.min(1,dt*2.0));
@@ -2028,13 +2223,15 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       return;
     }
 
-    // Movement vector relative to camera
+    // Movement vector relative to camera (disabled while napping)
     const mv=new THREE.Vector3();
-    if(keys.w)mv.add(camDir);
-    if(keys.s)mv.sub(camDir);
-    if(keys.d)mv.add(camRight);
-    if(keys.a)mv.sub(camRight);
-    mv.y=0;
+    if(!napActive){
+      if(keys.w)mv.add(camDir);
+      if(keys.s)mv.sub(camDir);
+      if(keys.d)mv.add(camRight);
+      if(keys.a)mv.sub(camRight);
+      mv.y=0;
+    }
     const moving=mv.lengthSq()>0.01;
     if(moving){
       mv.normalize();
@@ -2050,15 +2247,41 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     while(dy<-Math.PI)dy+=Math.PI*2;
     foxYaw+=dy*Math.min(1,dt*14);
     bluey.rotation.y=foxYaw;
+    // Chasing-tail spin overrides the yaw for a quick burst
+    if(spinT>0){
+      spinT-=dt;
+      bluey.rotation.y+=dt*18;
+      foxYaw=bluey.rotation.y;
+    }
+    // Body tilt for siesta + periodic floating Zzz
+    if(napActive){
+      blueyBody.rotation.z+=(0.9-blueyBody.rotation.z)*Math.min(1,dt*6);
+      napZzzT-=dt;
+      if(napZzzT<=0){
+        floatMessage('Z',bluey.position.x+(Math.random()-0.5)*0.4,2.3+Math.random()*0.5,bluey.position.z,'#3B7894');
+        napZzzT=1.4+Math.random()*0.9;
+      }
+    }else if(blueyBody.rotation.z>0.001){
+      blueyBody.rotation.z*=0.85;
+    }
 
     // Apply movement with collision
     if(speed>0.05){
       const nx=bluey.position.x+mv.x*speed*dt;
       const nz=bluey.position.z+mv.z*speed*dt;
-      const lim=halfW-1.2;
+      const innerLim=halfW-1.2;
+      const outerLim=halfW+5.5;
+      // Fence-jump qualifier: airborne, fast, heading into the fence
+      if(fenceJumpT<=0&&foxY>0.45&&speed>5&&(Math.abs(nx)>innerLim||Math.abs(nz)>innerLim)){
+        fenceJumpT=2.8;
+        playBark('surprised');
+        floatMessage('¡SALTASTE LA VALLA!',bluey.position.x,2.4,bluey.position.z,'#3B7894');
+      }
+      const lim=fenceJumpT>0?outerLim:innerLim;
       const cx=Math.max(-lim,Math.min(lim,nx));
       const cz=Math.max(-lim,Math.min(lim,nz));
-      if(foxY>0.8){
+      if(foxY>0.8||fenceJumpT>0){
+        // In the air OR mid fence-jump → bypass obstacle/fence collision
         bluey.position.x=cx;bluey.position.z=cz;
       }else{
         let bx=false,bz=false;
@@ -2070,9 +2293,29 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         if(!bz)bluey.position.z=cz;
       }
     }
+    // Fence-jump timer + auto-pull back toward the yard
+    if(fenceJumpT>0){
+      fenceJumpT-=dt;
+      const innerLim=halfW-1.2;
+      const outside=Math.abs(bluey.position.x)>innerLim||Math.abs(bluey.position.z)>innerLim;
+      if(fenceJumpT<1.4&&outside){
+        // Accelerating pull back to the yard, faster as the timer winds down
+        const pull=3+(1.4-fenceJumpT)*5;
+        if(bluey.position.x>innerLim)bluey.position.x=Math.max(innerLim,bluey.position.x-pull*dt);
+        if(bluey.position.x<-innerLim)bluey.position.x=Math.min(-innerLim,bluey.position.x+pull*dt);
+        if(bluey.position.z>innerLim)bluey.position.z=Math.max(innerLim,bluey.position.z-pull*dt);
+        if(bluey.position.z<-innerLim)bluey.position.z=Math.min(-innerLim,bluey.position.z+pull*dt);
+      }
+      if(fenceJumpT<=0){
+        fenceJumpT=0;
+        // Last-resort clamp in case the auto-pull missed
+        bluey.position.x=Math.max(-innerLim,Math.min(innerLim,bluey.position.x));
+        bluey.position.z=Math.max(-innerLim,Math.min(innerLim,bluey.position.z));
+      }
+    }
 
-    // Jump
-    if(keys.space&&grounded){vy=8.2;grounded=false;sfxBoing();playBark('jump');}
+    // Jump (disabled while napping)
+    if(keys.space&&grounded&&!napActive){vy=8.2;grounded=false;sfxBoing();playBark('jump');}
     if(!grounded){
       vy-=24*dt;
       foxY+=vy*dt;
@@ -2119,7 +2362,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
           collected++;
           boneCountEl.textContent=`${collected} / ${totalBones}`;
           pickupEffect(m.x,m.mesh.position.y+0.4,m.z);
-          if(collected===totalBones){
+          if(collected===totalBones&&!marquiwin&&!bluewin){
+            bluewin=true;
             winFlash.textContent='¡Bien hecho, Bluey!';
             winFlash.classList.add('show');
           }
@@ -2144,6 +2388,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     // Marqui & grass tufts
     updateMarqui(dt);
     updateTufts(dt);
+    updateBingo(dt);
 
     // Camera follow
     targetCam.copy(bluey.position).add(camOffset).add(panOffset);
