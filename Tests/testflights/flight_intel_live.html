@@ -1,0 +1,2796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>GLOBAL FLIGHT INTELLIGENCE — Live Traffic Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000408;
+    --bg-deep: #00010a;
+    --grid: rgba(0, 220, 255, 0.07);
+    --grid-strong: rgba(0, 220, 255, 0.15);
+    --cyan: #00e5ff;
+    --cyan-soft: #5fb8ff;
+    --cyan-dim: #2a6f8a;
+    --cyan-faint: rgba(0, 229, 255, 0.18);
+    --cyan-line: rgba(0, 229, 255, 0.35);
+    --amber: #ffb547;
+    --amber-hot: #ff7a1a;
+    --red: #ff3860;
+    --green: #00ff88;
+    --ink: #b8e8f5;
+    --ink-dim: #5a8a9a;
+    --ink-faint: #2a4858;
+    --panel-bg: rgba(0, 12, 20, 0.78);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden;
+    cursor: crosshair;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at center, rgba(0, 40, 60, 0.4) 0%, transparent 60%),
+      radial-gradient(ellipse at 20% 10%, rgba(0, 80, 120, 0.15), transparent 60%),
+      radial-gradient(ellipse at 80% 90%, rgba(80, 0, 120, 0.08), transparent 50%),
+      var(--bg-deep);
+  }
+
+  /* grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  }
+
+  /* scanlines + grain */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 99;
+    background:
+      repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px),
+      radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%);
+    mix-blend-mode: multiply;
+  }
+
+  canvas { display: block; }
+  #globe-canvas { position: fixed; inset: 0; z-index: 2; }
+
+  /* ====================== UI OVERLAY ====================== */
+  .ui {
+    position: fixed; inset: 0;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .ui > * { pointer-events: auto; }
+
+  /* ============ MASTHEAD ============ */
+  .masthead {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--cyan-line);
+    background: linear-gradient(to bottom, rgba(0,12,20,0.95), rgba(0,12,20,0.3));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .masthead .brand {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: 0.3em;
+    color: var(--cyan);
+    text-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+  }
+  .masthead .brand .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--ink-dim);
+    margin-left: 12px;
+  }
+  .masthead-stats {
+    display: flex;
+    gap: 28px;
+    color: var(--ink-dim);
+  }
+  .ms-item .v { color: var(--cyan); font-weight: 500; margin-left: 6px; }
+  .ms-item.alert .v { color: var(--amber); }
+  .ms-item.live .v::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    margin-right: 6px;
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ============ CORNER FRAMES — for that HUD feel ============ */
+  .corner {
+    position: absolute;
+    width: 30px; height: 30px;
+    z-index: 11;
+    pointer-events: none;
+  }
+  .corner::before, .corner::after {
+    content: '';
+    position: absolute;
+    background: var(--cyan);
+    box-shadow: 0 0 6px rgba(0,229,255,0.6);
+  }
+  .corner.tl { top: 60px; left: 16px; }
+  .corner.tr { top: 60px; right: 16px; transform: scaleX(-1); }
+  .corner.bl { bottom: 16px; left: 16px; transform: scaleY(-1); }
+  .corner.br { bottom: 16px; right: 16px; transform: scale(-1, -1); }
+  .corner::before { top: 0; left: 0; width: 1px; height: 16px; }
+  .corner::after  { top: 0; left: 0; width: 16px; height: 1px; }
+
+  /* ============ PANEL BASE ============ */
+  .panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--cyan-line);
+    position: relative;
+  }
+  .panel::before, .panel::after {
+    content: '';
+    position: absolute;
+    width: 8px; height: 8px;
+    border: 1px solid var(--cyan);
+    box-shadow: 0 0 4px rgba(0,229,255,0.5);
+  }
+  .panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .panel::after  { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+  .panel-h {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--cyan-line);
+    background: linear-gradient(to right, rgba(0,229,255,0.08), transparent);
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .panel-h .ix { color: var(--ink-dim); font-size: 9px; letter-spacing: 0.2em; }
+  .panel-h::before {
+    content: '◢';
+    color: var(--cyan);
+    margin-right: 8px;
+    font-size: 8px;
+  }
+  .panel-body { padding: 14px; font-size: 10px; }
+
+  /* ============ TOP-RIGHT: LIVE COUNTERS ============ */
+  .panel-counters {
+    position: absolute;
+    top: 80px; right: 24px;
+    width: 280px;
+  }
+  .counter-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(0,229,255,0.12);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .counter-row:last-child { border-bottom: none; }
+  .counter-row .num {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.05em;
+    color: var(--cyan);
+    text-shadow: 0 0 8px rgba(0,229,255,0.4);
+    font-variant-numeric: tabular-nums;
+  }
+  .counter-row.alert .num { color: var(--amber); text-shadow: 0 0 8px rgba(255,181,71,0.4); }
+
+  /* ============ TOP CORRIDORS ============ */
+  .panel-corridors {
+    position: absolute;
+    top: 320px; right: 24px;
+    width: 280px;
+  }
+  .corridor {
+    display: grid;
+    grid-template-columns: 24px 1fr 60px;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 0;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    border-bottom: 1px dashed rgba(0,229,255,0.08);
+    transition: background 0.2s;
+  }
+  .corridor:last-child { border-bottom: none; }
+  .corridor:hover { background: rgba(0,229,255,0.04); cursor: pointer; }
+  .corridor .rank {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    color: var(--cyan-dim);
+    font-size: 11px;
+  }
+  .corridor .route {
+    color: var(--ink);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+  }
+  .corridor .route .sep { color: var(--cyan-dim); margin: 0 4px; }
+  .corridor .bar {
+    height: 4px;
+    background: rgba(0,229,255,0.1);
+    position: relative;
+    overflow: hidden;
+  }
+  .corridor .bar-fill {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, var(--cyan), var(--cyan-soft));
+    box-shadow: 0 0 6px var(--cyan);
+    transform-origin: left;
+    animation: bar-pulse 3s ease-in-out infinite;
+  }
+  @keyframes bar-pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* ============ LEFT: AIRPORT DETAIL ============ */
+  .panel-airport {
+    position: absolute;
+    top: 80px; left: 24px;
+    width: 300px;
+  }
+  .ap-iata {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 56px;
+    letter-spacing: 0.06em;
+    color: var(--cyan);
+    line-height: 1;
+    text-shadow: 0 0 14px rgba(0,229,255,0.5);
+    margin-bottom: 4px;
+  }
+  .ap-name {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .ap-loc {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--cyan-faint);
+  }
+  .ap-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .ap-stat .v {
+    color: var(--cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ap-coords {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cyan-faint);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+    display: flex;
+    justify-content: space-between;
+  }
+  .ap-coords .c { color: var(--cyan-soft); }
+
+  .ap-destinations {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cyan-faint);
+  }
+  .ap-destinations .label {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--cyan);
+    margin-bottom: 8px;
+  }
+  .dest-chip {
+    display: inline-block;
+    padding: 3px 7px;
+    margin: 2px 3px 2px 0;
+    border: 1px solid var(--cyan-faint);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+    background: rgba(0, 229, 255, 0.04);
+  }
+
+  /* ============ BOTTOM: TIMELINE ============ */
+  .panel-timeline {
+    position: absolute;
+    bottom: 24px; left: 24px; right: 24px;
+    height: 96px;
+  }
+  .tl-body {
+    padding: 10px 14px;
+    display: flex;
+    gap: 14px;
+    align-items: stretch;
+    height: 100%;
+  }
+  .tl-label {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    min-width: 80px;
+  }
+  .tl-label .now {
+    color: var(--cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 6px rgba(0,229,255,0.4);
+  }
+  .tl-chart {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+  }
+  .tl-bar {
+    flex: 1;
+    background: linear-gradient(to top, var(--cyan-dim), var(--cyan));
+    opacity: 0.7;
+    transition: all 0.3s;
+    min-height: 2px;
+  }
+  .tl-bar.now {
+    background: linear-gradient(to top, var(--amber), var(--amber-hot));
+    box-shadow: 0 0 8px var(--amber);
+    opacity: 1;
+  }
+  .tl-axis {
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 1px;
+    background: var(--cyan-faint);
+  }
+  .tl-hours {
+    position: absolute;
+    bottom: -16px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+  }
+
+  /* ============ FILTERS / LEGEND ============ */
+  .panel-filters {
+    position: absolute;
+    bottom: 140px; right: 24px;
+    width: 280px;
+  }
+  .filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--cyan-faint);
+    color: var(--ink-dim);
+    padding: 7px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .filter-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .filter-btn.active {
+    border-color: var(--cyan);
+    background: rgba(0,229,255,0.12);
+    color: var(--cyan);
+    box-shadow: 0 0 8px rgba(0,229,255,0.3) inset;
+  }
+  .filter-btn .ct { font-size: 8px; color: var(--ink-faint); }
+  .filter-btn.active .ct { color: var(--cyan-soft); }
+
+  /* ============ TOOLTIP ============ */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    z-index: 30;
+    background: rgba(0,12,20,0.95);
+    border: 1px solid var(--cyan);
+    padding: 6px 10px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    box-shadow: 0 0 12px rgba(0,229,255,0.3);
+    opacity: 0;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .tooltip.v { opacity: 1; }
+  .tooltip .iata {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  .tooltip .city { color: var(--ink); }
+
+  /* ============ FEED STATUS BANNER ============ */
+  .feed-status {
+    position: absolute;
+    top: 52px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 13;
+    padding: 6px 16px;
+    border: 1px solid var(--cyan-line);
+    background: var(--panel-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .feed-status .led {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .feed-status.live .led { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .feed-status.loading .led { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: pulse 0.6s ease-in-out infinite; }
+  .feed-status.error .led { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .feed-status .label { color: var(--cyan); font-weight: 500; }
+  .feed-status.error .label { color: var(--red); }
+  .feed-status .src { color: var(--ink-dim); }
+  .feed-status .age { color: var(--ink); font-family: 'Orbitron', sans-serif; font-weight: 500; letter-spacing: 0.15em; }
+  .feed-status .countdown { color: var(--cyan-soft); }
+  .feed-retry {
+    background: transparent;
+    border: 1px solid var(--cyan-line);
+    color: var(--cyan);
+    width: 22px; height: 22px;
+    line-height: 1;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    padding: 0;
+    margin-left: 4px;
+  }
+  .feed-retry:hover { background: var(--cyan); color: var(--bg-deep); }
+  .feed-retry:active { transform: scale(0.94); }
+  .feed-retry.spinning { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ============ CENTER MARKS ============ */
+  .center-marks {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 12;  /* above canvas, below other panels */
+  }
+  .center-marks svg { display: block; }
+
+  /* ============ BOOT SEQUENCE ============ */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in-l {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes fade-in-r {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .masthead { animation: fade-in 0.6s 0s cubic-bezier(0.2,0.8,0.2,1) both; }
+  .panel-airport   { animation: fade-in-l 0.7s 0.2s cubic-bezier(0.2,0.8,0.2,1) both; }
+  .panel-counters  { animation: fade-in-r 0.7s 0.3s cubic-bezier(0.2,0.8,0.2,1) both; }
+  .panel-corridors { animation: fade-in-r 0.7s 0.45s cubic-bezier(0.2,0.8,0.2,1) both; }
+  .panel-filters   { animation: fade-in-r 0.7s 0.6s cubic-bezier(0.2,0.8,0.2,1) both; }
+  .panel-timeline  { animation: fade-in 0.7s 0.5s cubic-bezier(0.2,0.8,0.2,1) both; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1100px) {
+    .panel-corridors, .panel-filters { display: none; }
+  }
+  @media (max-width: 800px) {
+    .panel-airport, .panel-counters { width: 220px; }
+    .ap-iata { font-size: 40px; }
+    .masthead { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .masthead-stats { gap: 14px; font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="globe-canvas"></canvas>
+
+<!-- center radial marks behind the globe -->
+<div class="center-marks" id="center-marks"></div>
+
+<div class="ui">
+
+  <!-- MASTHEAD -->
+  <div class="masthead">
+    <div class="brand">
+      ◉ GFI · GLOBAL FLIGHT INTELLIGENCE
+      <span class="sub">// LIVE TRAFFIC ATLAS · v4.2.1</span>
+    </div>
+    <div class="masthead-stats">
+      <span class="ms-item live">SYS<span class="v">NOMINAL</span></span>
+      <span class="ms-item">UTC<span class="v" id="utc-clock">00:00:00</span></span>
+      <span class="ms-item">FRAME<span class="v" id="frame-id">00000000</span></span>
+      <span class="ms-item">LAT<span class="v" id="cam-lat">+00.00°</span></span>
+      <span class="ms-item">LON<span class="v" id="cam-lon">+000.00°</span></span>
+      <span class="ms-item">ALT<span class="v" id="cam-zoom">×1.00</span></span>
+      <span class="ms-item alert">SIGINT<span class="v">SECURE</span></span>
+    </div>
+  </div>
+
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <!-- FEED STATUS -->
+  <div class="feed-status loading" id="feed-status">
+    <span class="led"></span>
+    <span class="label" id="feed-label">CONECTANDO</span>
+    <span class="src">ADS-B · adsb.lol → adsb.fi → proxies</span>
+    <span class="age" id="feed-age">—</span>
+    <span class="countdown" id="feed-countdown"></span>
+    <button class="feed-retry" id="feed-retry" title="Reintentar ahora">⟲</button>
+  </div>
+
+  <!-- LEFT: AIRPORT / AIRCRAFT DETAIL -->
+  <div class="panel panel-airport" id="panel-airport">
+    <div class="panel-h">
+      <span id="node-h">NODE FOCUS</span>
+      <span class="ix" id="node-ix">N° 00 / 00</span>
+    </div>
+    <div class="panel-body">
+      <div class="ap-iata" id="ap-iata">———</div>
+      <div class="ap-name" id="ap-name">Awaiting handshake</div>
+      <div class="ap-loc" id="ap-loc">— · —</div>
+
+      <div class="ap-stat"><span id="stat1-l">Aviones cerca</span><span class="v" id="ap-traffic">0</span></div>
+      <div class="ap-stat"><span id="stat2-l">Altitud media</span><span class="v" id="ap-conn">0</span></div>
+      <div class="ap-stat"><span id="stat3-l">Vel. media</span><span class="v" id="ap-hub">0</span></div>
+      <div class="ap-stat"><span id="stat4-l">Estado</span><span class="v" id="ap-status">OPERATIVO</span></div>
+
+      <div class="ap-destinations">
+        <div class="label" id="dests-h">AVIONES EN RADAR</div>
+        <div id="ap-dests"></div>
+      </div>
+
+      <div class="ap-coords">
+        <span>LAT <span class="c" id="ap-lat">+00.00°</span></span>
+        <span>LON <span class="c" id="ap-lon">+000.00°</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP RIGHT: LIVE COUNTERS -->
+  <div class="panel panel-counters">
+    <div class="panel-h">
+      <span>TRÁFICO GLOBAL</span>
+      <span class="ix">ADS-B FEED</span>
+    </div>
+    <div class="panel-body">
+      <div class="counter-row">
+        <span>Vuelos detectados</span>
+        <span class="num" id="ct-flights">0</span>
+      </div>
+      <div class="counter-row">
+        <span>En tierra</span>
+        <span class="num" id="ct-routes">0</span>
+      </div>
+      <div class="counter-row">
+        <span>Aeropuertos online</span>
+        <span class="num" id="ct-airports">0</span>
+      </div>
+      <div class="counter-row">
+        <span>Altitud media</span>
+        <span class="num" id="ct-mpm">0</span>
+      </div>
+      <div class="counter-row alert">
+        <span>Vel. máxima</span>
+        <span class="num" id="ct-peak">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP CORRIDORS / COUNTRIES -->
+  <div class="panel panel-corridors">
+    <div class="panel-h">
+      <span>TOP PAÍSES · ICAO</span>
+      <span class="ix" id="corr-time">EN RADAR</span>
+    </div>
+    <div class="panel-body" id="corridors-list">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="panel panel-filters">
+    <div class="panel-h">
+      <span>FILTROS REGIONALES</span>
+      <span class="ix" id="filter-count">ALL · 227</span>
+    </div>
+    <div class="panel-body">
+      <div class="filter-grid">
+        <button class="filter-btn active" data-region="all">Global<span class="ct"></span></button>
+        <button class="filter-btn" data-region="NA">N. América<span class="ct"></span></button>
+        <button class="filter-btn" data-region="EU">Europa<span class="ct"></span></button>
+        <button class="filter-btn" data-region="EA">E. Asia<span class="ct"></span></button>
+        <button class="filter-btn" data-region="SEA">SE Asia<span class="ct"></span></button>
+        <button class="filter-btn" data-region="ME">M. Oriente<span class="ct"></span></button>
+        <button class="filter-btn" data-region="SAS">S. Asia<span class="ct"></span></button>
+        <button class="filter-btn" data-region="OC">Oceanía<span class="ct"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE / STRIP CHART -->
+  <div class="panel panel-timeline">
+    <div class="panel-h">
+      <span>TIMELINE — DETECCIONES ÚLT. 60 MIN</span>
+      <span class="ix" id="tl-hour">ROLLING WINDOW</span>
+    </div>
+    <div class="tl-body">
+      <div class="tl-label">
+        <div>AHORA</div>
+        <div class="now" id="tl-now">···</div>
+        <div>UTC</div>
+      </div>
+      <div class="tl-chart" id="tl-chart">
+        <div class="tl-axis"></div>
+        <div class="tl-hours">
+          <span>-60m</span><span>-45m</span><span>-30m</span><span>-15m</span><span>AHORA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tooltip" id="tooltip"><span class="iata"></span><span class="city"></span></div>
+
+<!-- ====================== DATA ====================== -->
+<script id="flight-data" type="application/json">{"airports":[{"iata":"ATL","name":"Hartsfield\u2013Jackson","city":"Atlanta","country":"USA","lat":33.6407,"lon":-84.4277,"region":"NA","hub":7},{"iata":"LAX","name":"Los Angeles Intl","city":"Los Angeles","country":"USA","lat":33.9416,"lon":-118.4085,"region":"NA","hub":14},{"iata":"ORD","name":"O\u2032Hare","city":"Chicago","country":"USA","lat":41.9742,"lon":-87.9073,"region":"NA","hub":8},{"iata":"DFW","name":"Dallas/Fort Worth","city":"Dallas","country":"USA","lat":32.8998,"lon":-97.0403,"region":"NA","hub":4},{"iata":"DEN","name":"Denver Intl","city":"Denver","country":"USA","lat":39.8561,"lon":-104.6737,"region":"NA","hub":3},{"iata":"JFK","name":"John F. Kennedy","city":"New York","country":"USA","lat":40.6413,"lon":-73.7781,"region":"NA","hub":19},{"iata":"SFO","name":"San Francisco Intl","city":"San Francisco","country":"USA","lat":37.6213,"lon":-122.379,"region":"NA","hub":7},{"iata":"SEA","name":"Seattle-Tacoma","city":"Seattle","country":"USA","lat":47.4502,"lon":-122.3088,"region":"NA","hub":4},{"iata":"MIA","name":"Miami Intl","city":"Miami","country":"USA","lat":25.7959,"lon":-80.287,"region":"NA","hub":8},{"iata":"BOS","name":"Logan","city":"Boston","country":"USA","lat":42.3656,"lon":-71.0096,"region":"NA","hub":3},{"iata":"YYZ","name":"Toronto Pearson","city":"Toronto","country":"CAN","lat":43.6777,"lon":-79.6248,"region":"NA","hub":4},{"iata":"YVR","name":"Vancouver Intl","city":"Vancouver","country":"CAN","lat":49.1967,"lon":-123.1815,"region":"NA","hub":3},{"iata":"MEX","name":"Benito Ju\u00e1rez","city":"Ciudad de M\u00e9xico","country":"MEX","lat":19.4361,"lon":-99.0719,"region":"NA","hub":6},{"iata":"CUN","name":"Canc\u00fan Intl","city":"Canc\u00fan","country":"MEX","lat":21.0365,"lon":-86.8771,"region":"NA","hub":3},{"iata":"GRU","name":"Guarulhos","city":"S\u00e3o Paulo","country":"BRA","lat":-23.4356,"lon":-46.4731,"region":"SA","hub":10},{"iata":"EZE","name":"Ministro Pistarini","city":"Buenos Aires","country":"ARG","lat":-34.8222,"lon":-58.5358,"region":"SA","hub":3},{"iata":"BOG","name":"El Dorado","city":"Bogot\u00e1","country":"COL","lat":4.7016,"lon":-74.1469,"region":"SA","hub":4},{"iata":"LIM","name":"Jorge Ch\u00e1vez","city":"Lima","country":"PER","lat":-12.0219,"lon":-77.1143,"region":"SA","hub":5},{"iata":"SCL","name":"Arturo Merino Ben\u00edtez","city":"Santiago","country":"CHL","lat":-33.3928,"lon":-70.7858,"region":"SA","hub":3},{"iata":"GIG","name":"Gale\u00e3o","city":"R\u00edo de Janeiro","country":"BRA","lat":-22.8089,"lon":-43.2436,"region":"SA","hub":2},{"iata":"LHR","name":"Heathrow","city":"London","country":"GBR","lat":51.47,"lon":-0.4543,"region":"EU","hub":23},{"iata":"CDG","name":"Charles de Gaulle","city":"Paris","country":"FRA","lat":49.0097,"lon":2.5479,"region":"EU","hub":15},{"iata":"AMS","name":"Schiphol","city":"Amsterdam","country":"NLD","lat":52.3105,"lon":4.7683,"region":"EU","hub":6},{"iata":"FRA","name":"Frankfurt","city":"Frankfurt","country":"DEU","lat":50.0379,"lon":8.5622,"region":"EU","hub":15},{"iata":"MAD","name":"Barajas","city":"Madrid","country":"ESP","lat":40.4936,"lon":-3.5668,"region":"EU","hub":15},{"iata":"BCN","name":"El Prat","city":"Barcelona","country":"ESP","lat":41.2974,"lon":2.0833,"region":"EU","hub":5},{"iata":"FCO","name":"Fiumicino","city":"Rome","country":"ITA","lat":41.8003,"lon":12.2389,"region":"EU","hub":5},{"iata":"MUC","name":"Munich","city":"Munich","country":"DEU","lat":48.3538,"lon":11.7861,"region":"EU","hub":4},{"iata":"IST","name":"Istanbul","city":"Istanbul","country":"TUR","lat":41.2753,"lon":28.7519,"region":"EU","hub":8},{"iata":"SVO","name":"Sheremetyevo","city":"Moscow","country":"RUS","lat":55.9726,"lon":37.4146,"region":"EU","hub":4},{"iata":"LGW","name":"Gatwick","city":"London","country":"GBR","lat":51.1537,"lon":-0.1821,"region":"EU","hub":3},{"iata":"ZRH","name":"Z\u00fcrich","city":"Z\u00fcrich","country":"CHE","lat":47.4647,"lon":8.5492,"region":"EU","hub":1},{"iata":"VIE","name":"Vienna","city":"Vienna","country":"AUT","lat":48.1103,"lon":16.5697,"region":"EU","hub":2},{"iata":"CPH","name":"Kastrup","city":"Copenhagen","country":"DNK","lat":55.618,"lon":12.6508,"region":"EU","hub":2},{"iata":"OSL","name":"Gardermoen","city":"Oslo","country":"NOR","lat":60.1939,"lon":11.1004,"region":"EU","hub":2},{"iata":"ARN","name":"Arlanda","city":"Stockholm","country":"SWE","lat":59.6519,"lon":17.9186,"region":"EU","hub":3},{"iata":"HEL","name":"Vantaa","city":"Helsinki","country":"FIN","lat":60.3172,"lon":24.9633,"region":"EU","hub":2},{"iata":"DUB","name":"Dublin","city":"Dublin","country":"IRL","lat":53.4213,"lon":-6.2701,"region":"EU","hub":2},{"iata":"LIS","name":"Humberto Delgado","city":"Lisbon","country":"PRT","lat":38.7813,"lon":-9.1359,"region":"EU","hub":2},{"iata":"ATH","name":"Eleftherios Venizelos","city":"Athens","country":"GRC","lat":37.9364,"lon":23.9445,"region":"EU","hub":2},{"iata":"DXB","name":"Dubai Intl","city":"Dubai","country":"UAE","lat":25.2532,"lon":55.3657,"region":"ME","hub":20},{"iata":"DOH","name":"Hamad","city":"Doha","country":"QAT","lat":25.2731,"lon":51.608,"region":"ME","hub":4},{"iata":"AUH","name":"Abu Dhabi","city":"Abu Dhabi","country":"UAE","lat":24.433,"lon":54.6511,"region":"ME","hub":4},{"iata":"JED","name":"King Abdulaziz","city":"Jeddah","country":"SAU","lat":21.6796,"lon":39.1565,"region":"ME","hub":3},{"iata":"RUH","name":"King Khalid","city":"Riyadh","country":"SAU","lat":24.9576,"lon":46.6988,"region":"ME","hub":1},{"iata":"TLV","name":"Ben Gurion","city":"Tel Aviv","country":"ISR","lat":32.0114,"lon":34.8867,"region":"ME","hub":0},{"iata":"CAI","name":"Cairo Intl","city":"Cairo","country":"EGY","lat":30.1219,"lon":31.4056,"region":"AF","hub":4},{"iata":"JNB","name":"O. R. Tambo","city":"Johannesburg","country":"ZAF","lat":-26.1392,"lon":28.246,"region":"AF","hub":5},{"iata":"CPT","name":"Cape Town Intl","city":"Cape Town","country":"ZAF","lat":-33.9648,"lon":18.6017,"region":"AF","hub":1},{"iata":"LOS","name":"Murtala Muhammed","city":"Lagos","country":"NGA","lat":6.5774,"lon":3.3211,"region":"AF","hub":4},{"iata":"NBO","name":"Jomo Kenyatta","city":"Nairobi","country":"KEN","lat":-1.3192,"lon":36.9278,"region":"AF","hub":4},{"iata":"ADD","name":"Bole","city":"Addis Ababa","country":"ETH","lat":8.9779,"lon":38.7993,"region":"AF","hub":2},{"iata":"CMN","name":"Mohammed V","city":"Casablanca","country":"MAR","lat":33.3675,"lon":-7.5898,"region":"AF","hub":2},{"iata":"DEL","name":"Indira Gandhi","city":"New Delhi","country":"IND","lat":28.5562,"lon":77.1,"region":"SAS","hub":7},{"iata":"BOM","name":"Chhatrapati Shivaji","city":"Mumbai","country":"IND","lat":19.0896,"lon":72.8656,"region":"SAS","hub":10},{"iata":"BLR","name":"Kempegowda","city":"Bangalore","country":"IND","lat":13.1986,"lon":77.7066,"region":"SAS","hub":5},{"iata":"MAA","name":"Chennai","city":"Chennai","country":"IND","lat":12.9941,"lon":80.1709,"region":"SAS","hub":3},{"iata":"HYD","name":"Rajiv Gandhi","city":"Hyderabad","country":"IND","lat":17.2403,"lon":78.4294,"region":"SAS","hub":3},{"iata":"CMB","name":"Bandaranaike","city":"Colombo","country":"LKA","lat":7.1808,"lon":79.8841,"region":"SAS","hub":2},{"iata":"HND","name":"Haneda","city":"Tokyo","country":"JPN","lat":35.5494,"lon":139.7798,"region":"EA","hub":9},{"iata":"NRT","name":"Narita","city":"Tokyo","country":"JPN","lat":35.772,"lon":140.3929,"region":"EA","hub":6},{"iata":"KIX","name":"Kansai","city":"Osaka","country":"JPN","lat":34.4348,"lon":135.244,"region":"EA","hub":2},{"iata":"ICN","name":"Incheon","city":"Seoul","country":"KOR","lat":37.4602,"lon":126.4407,"region":"EA","hub":10},{"iata":"GMP","name":"Gimpo","city":"Seoul","country":"KOR","lat":37.5587,"lon":126.7906,"region":"EA","hub":1},{"iata":"PEK","name":"Beijing Capital","city":"Beijing","country":"CHN","lat":40.0799,"lon":116.6031,"region":"EA","hub":7},{"iata":"PKX","name":"Daxing","city":"Beijing","country":"CHN","lat":39.5098,"lon":116.4106,"region":"EA","hub":0},{"iata":"PVG","name":"Pudong","city":"Shanghai","country":"CHN","lat":31.1443,"lon":121.8083,"region":"EA","hub":9},{"iata":"CAN","name":"Baiyun","city":"Guangzhou","country":"CHN","lat":23.3924,"lon":113.2988,"region":"EA","hub":3},{"iata":"SZX","name":"Shenzhen","city":"Shenzhen","country":"CHN","lat":22.6393,"lon":113.8108,"region":"EA","hub":4},{"iata":"HKG","name":"Hong Kong Intl","city":"Hong Kong","country":"HKG","lat":22.308,"lon":113.9185,"region":"EA","hub":17},{"iata":"TPE","name":"Taoyuan","city":"Taipei","country":"TWN","lat":25.0797,"lon":121.2342,"region":"EA","hub":4},{"iata":"SIN","name":"Changi","city":"Singapore","country":"SGP","lat":1.3644,"lon":103.9915,"region":"SEA","hub":17},{"iata":"KUL","name":"Kuala Lumpur","city":"Kuala Lumpur","country":"MYS","lat":2.7456,"lon":101.7099,"region":"SEA","hub":3},{"iata":"BKK","name":"Suvarnabhumi","city":"Bangkok","country":"THA","lat":13.69,"lon":100.7501,"region":"SEA","hub":9},{"iata":"DMK","name":"Don Mueang","city":"Bangkok","country":"THA","lat":13.9126,"lon":100.6068,"region":"SEA","hub":1},{"iata":"CGK","name":"Soekarno-Hatta","city":"Jakarta","country":"IDN","lat":-6.1256,"lon":106.6559,"region":"SEA","hub":3},{"iata":"DPS","name":"Ngurah Rai","city":"Denpasar","country":"IDN","lat":-8.7482,"lon":115.1672,"region":"SEA","hub":1},{"iata":"MNL","name":"Ninoy Aquino","city":"Manila","country":"PHL","lat":14.5086,"lon":121.0194,"region":"SEA","hub":3},{"iata":"SGN","name":"Tan Son Nhat","city":"Ho Chi Minh","country":"VNM","lat":10.8188,"lon":106.6519,"region":"SEA","hub":3},{"iata":"SYD","name":"Kingsford Smith","city":"Sydney","country":"AUS","lat":-33.9399,"lon":151.1753,"region":"OC","hub":8},{"iata":"MEL","name":"Tullamarine","city":"Melbourne","country":"AUS","lat":-37.669,"lon":144.841,"region":"OC","hub":4},{"iata":"BNE","name":"Brisbane","city":"Brisbane","country":"AUS","lat":-27.3942,"lon":153.1218,"region":"OC","hub":2},{"iata":"AKL","name":"Auckland","city":"Auckland","country":"NZL","lat":-37.0082,"lon":174.785,"region":"OC","hub":3}],"routes":[["HKG","TPE",0.95],["SYD","MEL",0.95],["KUL","SIN",0.92],["JFK","LAX",0.92],["SIN","CGK",0.9],["JFK","LHR",0.9],["DXB","BOM",0.9],["HND","KIX",0.88],["SIN","BKK",0.88],["LHR","DXB",0.88],["DXB","DEL",0.88],["NRT","ICN",0.85],["HND","ICN",0.85],["LAX","SFO",0.85],["LHR","DUB",0.85],["DOH","DXB",0.85],["MEX","CUN",0.85],["GRU","GIG",0.85],["MAD","BCN",0.85],["DEL","BOM",0.85],["PEK","PVG",0.85],["CGK","DPS",0.85],["HKG","PVG",0.83],["LHR","AMS",0.8],["SYD","BNE",0.8],["HKG","PEK",0.78],["ATL","LAX",0.78],["LHR","CDG",0.78],["CDG","JFK",0.78],["DXB","JFK",0.78],["DXB","SIN",0.78],["DOH","LHR",0.78],["GRU","EZE",0.78],["JNB","CPT",0.78],["DEL","BLR",0.78],["BOM","BLR",0.78],["PEK","CAN",0.78],["ATL","ORD",0.76],["DXB","BKK",0.76],["ATL","MIA",0.75],["DXB","HKG",0.75],["LAX","HND",0.75],["ATL","JFK",0.74],["LHR","FRA",0.74],["CDG","AMS",0.74],["DXB","CDG",0.74],["DXB","SYD",0.74],["DOH","BOM",0.74],["LAX","ORD",0.72],["LHR","MAD",0.72],["CDG","FRA",0.72],["AMS","FRA",0.72],["LAX","NRT",0.72],["BOS","LHR",0.72],["MEX","LAX",0.72],["MEX","MIA",0.72],["CPH","ARN",0.72],["DEL","LHR",0.72],["HND","PVG",0.72],["PVG","CAN",0.72],["SYD","AKL",0.72],["ORD","JFK",0.7],["LHR","BCN",0.7],["CDG","MAD",0.7],["FRA","MUC",0.7],["FRA","JFK",0.7],["AUH","BOM",0.7],["SFO","HND",0.7],["LAX","SYD",0.7],["JFK","AMS",0.7],["ORD","LHR",0.7],["CPH","OSL",0.7],["CAI","JED",0.7],["SFO","ICN",0.68],["HND","HKG",0.68],["FRA","PEK",0.65],["AUH","DXB",0.65],["SFO","PVG",0.65],["LAX","PVG",0.65],["MIA","GRU",0.65],["YYZ","LHR",0.65],["MEX","JFK",0.65],["GRU","SCL",0.65],["MAD","LIS",0.65],["OSL","ARN",0.65],["DUB","LGW",0.65],["IST","DXB",0.65],["CAI","DXB",0.65],["JED","RUH",0.65],["DEL","MAA",0.65],["DEL","HYD",0.65],["DEL","DOH",0.65],["BOM","LHR",0.65],["HND","TPE",0.65],["PEK","SZX",0.65],["SYD","SIN",0.65],["DEN","LAX",0.65],["SEA","SFO",0.65],["LAX","MEL",0.62],["SEA","HND",0.62],["YVR","HKG",0.62],["JFK","MAD",0.62],["JFK","FCO",0.62],["MIA","MAD",0.62],["ORD","FRA",0.62],["MEX","GRU",0.62],["CUN","JFK",0.62],["GRU","LIS",0.62],["GRU","MAD",0.62],["BOG","MIA",0.62],["MUC","VIE",0.62],["IST","FRA",0.62],["JNB","LHR",0.62],["BOM","MAA",0.62],["BOM","HYD",0.62],["NRT","HKG",0.62],["ICN","PVG",0.62],["PVG","SZX",0.62],["HKG","SIN",0.62],["SGN","SIN",0.62],["MEL","BNE",0.62],["LHR","HKG",0.62],["DFW","LAX",0.62],["SEA","LAX",0.62],["MIA","JFK",0.62],["GMP","ICN",0.6],["MEX","MAD",0.6],["CUN","ATL",0.6],["EZE","SCL",0.6],["FCO","CDG",0.6],["IST","LHR",0.6],["JED","DXB",0.6],["JNB","DXB",0.6],["CMN","CDG",0.6],["YVR","HND",0.58],["JFK","MUC",0.58],["NRT","BKK",0.58],["HKG","BKK",0.58],["SFO","SIN",0.55],["JFK","ZRH",0.55],["GRU","BOG",0.55],["GRU","LIM",0.55],["BOG","LIM",0.55],["LIM","SCL",0.55],["MAD","FCO",0.55],["BCN","CDG",0.55],["FCO","MUC",0.55],["VIE","FRA",0.55],["ARN","HEL",0.55],["LGW","BCN",0.55],["IST","ATH",0.55],["IST","SVO",0.55],["CAI","IST",0.55],["JNB","NBO",0.55],["NBO","ADD",0.55],["NBO","DXB",0.55],["LOS","LHR",0.55],["BLR","HYD",0.55],["BLR","MAA",0.55],["BOM","SIN",0.55],["NRT","SIN",0.55],["KIX","ICN",0.55],["ICN","PEK",0.55],["ICN","HKG",0.55],["ICN","BKK",0.55],["ICN","SIN",0.55],["CAN","SZX",0.55],["HKG","SZX",0.55],["TPE","NRT",0.55],["BKK","KUL",0.55],["CGK","KUL",0.55],["MNL","SIN",0.55],["MNL","DXB",0.55],["MEL","AKL",0.55],["SYD","LHR",0.55],["SYD","HKG",0.55],["AKL","LAX",0.55],["LHR","SIN",0.55],["CDG","PEK",0.55],["CDG","HKG",0.55],["FRA","PVG",0.55],["FRA","HKG",0.55],["AMS","DXB",0.55],["AUH","LHR",0.55],["DEN","ORD",0.55],["DEN","SFO",0.55],["DFW","JFK",0.55],["DFW","ORD",0.55],["BOS","JFK",0.55],["YVR","YYZ",0.55],["YYZ","JFK",0.55],["CAI","CDG",0.5],["JNB","LOS",0.5],["BLR","SIN",0.5],["CMB","DXB",0.5],["HKG","MNL",0.5],["SGN","BKK",0.5],["CDG","GRU",0.5],["MAD","EZE",0.5],["FRA","SIN",0.5],["FRA","BKK",0.5],["AMS","SIN",0.5],["DFW","ATL",0.5],["SEA","ORD",0.5],["BOS","ATL",0.5],["HEL","FRA",0.45],["LGW","MAD",0.45],["ATH","FCO",0.45],["NBO","LOS",0.45],["LOS","CDG",0.45],["CMN","MAD",0.45],["ADD","DXB",0.45],["CMB","BOM",0.45],["TPE","SIN",0.45],["SGN","HKG",0.45],["IST","BCN",0.45],["IST","MAD",0.45],["MAD","BOG",0.45],["LHR","GIG",0.45],["AUH","JFK",0.45],["YYZ","MIA",0.45],["SVO","LHR",0.45],["BKK","DMK",0.4],["MAD","LIM",0.4],["MIA","LIM",0.4],["SVO","CDG",0.4],["SVO","FRA",0.4]]}</script>
+<script id="world-mask" type="text/plain">iVBORw0KGgoAAAANSUhEUgAAAtAAAAFoCAAAAABbTZPFAAAMKklEQVR42u2d2XbcMA4Fdfv4/3/5zsOcmTiO29bCBUvVY+K2SaAIQWqJOg4AAAAAAAAAAAAAAAAAAAAAAAAAAACAnKjFLE30EBqbCSBCN7MZqRG6nM04jdDFZEZqhK5nMz4jdCWb8RmhS2iMzwhdSWN8RuiCNuMzmSgkMz6TilI24zO5qGQzPpOMQjLjM9koZXM7ny2ELutyM5+dYdbCZXy+mQWRkFIuN/HZuSIgvC3js0eP0QtiM7onFzJn99mjFVsQJk+Lo3A5p8/5wzcnmCIb6Xyu5vLQgF7+JU97HhN/ojcxprodTDVPh3A5YmD1OJZqmg7hcsTYalQ81Swb+BwzzCKe0YUm/lcCLsIZ22fify32Ip6hhSb+F3kRT3zuIzTx/NVn43OeUkM8fw7a5BuECf9YoYnnTzGbf4cw8R/bchDPyzUAnwMLTTz3ng8S/xknhXDFZ+Fz5PwQ0t/i5XmFm+Aj9I5weVIXQuxnHEGJ6plozdingsgjdJ2zQQL/iA9CEExnmJYnKsUWmwk7FbpSbcbnR7w4yv6iM1GgQlOcKdBBU+Zrv8BIi89L0uV3/3v/EawiF/yEzmmz5W/+9+ZDsnUeRRQ+506V//7fO/tyVNqJQ9P1FDrPz9Sf72svh1vXU9pb6G2bfvY8O7+U0Ov3Lbiv0L70N9B5UJJmt5B93yhx6YFDfD4O3TxdW3xOZIQecHG0TRn20wTxxcqKhWwerr9epvVgXXQt0dNmb527MoTL3wXICpjSFEnTujkLmZdkYsX3Csbno8A9AjkywVPf2xtsGMkr1fLL7OuffzQ+zzPkdfQ1WoF0x+dULUfPu+S/3fOA8lykSrnj1P/ZigabZyfiVW7lRB2Q5lVn4fOOWLihz1++9ZontBF6cYVu/Lip/j9zJV+fCUa+9F4OuWoYL50XwkReFTWKOpCZLTS7LewQGp+hltDCZ7poKjQ+YzJCBwOfawodIPwq6jNm96zQVX2G4zjaPVNY7QY7fO4s9K7se82M8l4VHPmeGtXJbtRitsjnnELLg9PTpEJvPDS74qTGT8GD5vOBzlkPSPnvE9GELH1gc9LGSsUSM2g+H+i8aUC+/xv8/88rb4Ge43Pxk8J4J4JPrkso7anf7+t6WKYqV2hFH9KV+8NVNC86PHRuH+i8cUxnjda9RdAxLR/ovHNQp/RU8aQIobsenzOXaK05qVou9IJ8KFFK9febK1xsZWp5ugpWaKUal/66/PZluWtTSUiciXIv/42hsy8MzO9uydCWAC5OhPPuy1Gwwb1y+nf2Z3/fxKNSAEf7zCNYi4y+/Gayn7blUSGfR/MKkOyaRuvRZ5U+gpsaoy0VusdzFnowY/WIoMfP5FXYojhjETXhTQOtIoHhIbush/RxqfCUbL1iThaqrzjP8Zk3yeZtrpxc9jlFbVcPTYluHELP83lfhZ6y6zzLJEl5rrrzu6v6bCUM3xq5PDdNOsoYHag8e9GAnE7o6StdRxWjw/m8YlROJbQXZElHEaMjtc8+MHpXTrg5abJknfftd0ehVS6xX9Jo9zW6ZYVWbZ+PHk80IHTVjHj5oVfC6WA2udCa8KYBGrmO4+BejkVe+Vhx/ZUXIQZ+pjRngfb2Qbq5XK8KM3cCn2df7eAcMdb8K9RoxximW7vFFysrRbLZCb2J0PmbjpNDsDG6x+RzNx0ONVj3datMy+FMf90d7vBQo786XMmMd8FqyYD2vZuzvdC3w620Qz+7oaHuj0jbjmQI7bxT8MT4+94k3z41Y4Rue+De3y75/kTfP1rtwmZlPykscInqhzPEz/91+URSlYNWtULrUZ8Zo0LPy9YPMSl7NTzkYvW1wXv/dPL1pT71x/Kdp8c8+vjs2B1kTj7KGa2c5zVB2ymfHrRDTCrjxTCf/ENOZVRGofXrz2r8O6TrCX2+amR6g3NCoXXlF+jA6Odlw3kMynfZ7pLPBZ9KGjij00/XJrrO96rtc0WK7gfYVOjLPhujBxitrYOs20OrhWRrs3Zy3wVfHIs3ZUtp/VBjoacbfeGeJv3wW4XQaZ3OW6L/HbquTPCn+582JChuD33iFNzuurWKJ66ON4FPcv4Y+aRQp5zG6Gz9eVuhKdMzXfHdgAc3pkROVcGwtanzt3dr6PIM9ePPrk9Mjae+IxTpfLXNhVZ3CaEVIoLbjnZ+/GE/P9Ipmth19uUwRqcMGkK/E6hf2+Hnn/SzBRmvzaq04bkDxHfDK+VvOPn52dsnMVM84XO3HAHPw5YWaX/tGvRkPWhctHmmcORRt8zLRGdl8+6tXz7/gW2X7Sq+Y8W7nVbsm1bX3cq4IQ3ZhX7Ts3pzZPcordJ/rkfLEfgBzqhfHd4v0FdbDiH0Am9U1ehnPp/6uOML3e8dKwufz16Z0Id/7NbHf3mJHTv4rznG+CiotJ7NfsajhWynW7HtOOK9nfBzN3D1wZLzXbQReqU4Okop/WhX0ivfFfr0Xza7jy7VJstNF9EPOOH8KXNSqFCK7Tw9LHqK3a1Ch26k5+ZeO2cRTaBCl+0URbCCZdppSnSlY6FTTN8ZU+h320WH86dUc+c0EXCyDH56o5Zj29Pvm0LqyLNFqNg9VCWhvfBTYYxeecnur69hvtG54ZPKEY/jSjXaTaP/XJ6/e6NnmD1S1N7n3EZr7Wj/++e+fNMYyip6aGrJTa1jUkdob/hkv+Xn6AuTCp26RCvVaBF6UZmlRJ832ghdfDU8UUTECqFLZSmV0cowCYTebLTSGR27RCP07iNpK6NNOJeGKtuNStozWP00C/32eSH00rWvREPfdffru/dQnN6sRgi98mAmhL5n9JXZCqFXdmdC6Fk11lPHX+fmJOcNTbLbqgYaPX4KCB0gOknvE9So+QqhaxntbtnzvJkgdID4OGXyPKrrGDodnljZH6G0Bdoj+45B80Ho/SFK3HE87KYnNNNsY7A/RiVa6Ltqe/CUam26ZoTOnranc6r4FixWYTL0KQpPt+F9lYsM5EydNOTu1GoKZLwYbZL3dzCezIuWg+NRvPbjwcxeJJkxVwrIi2BApT6RR7BYhPt9Hmh0vR5anS6DWbnM/W4Nj81XwQqd8A7bwXf5xLTZ/nbcHjuNilc5xtZomvIpTbI1Z0WW7KF73DCeY2uur6X5i+QefaSpeVKoZD5X3pjPP/2Hh0+j6FUOpfK5Wbfx578mLMaql+2UyWdv/PTOqXnCNLgOnb8+m6EhdKl+I6rR9vpZIHRWHxXeaO9YlwjdeE1UHFNZodVLRleYlhEaohrtTZNA6KTHkthHIHvXskRoSnQYnemh+5bowAXaW7/IR2hOeUNVZyM0egbqObz7N/DUNwW6VB9PhaZEB/PZCI3/FbrnMUYj9Dtplr7jVTd/WDnOFBcaTQ+d6yLCPxKz1SMVOlRtvryElHIVLivRCB3A5ifm13xIzAidvdfQ3R9TabNrdYvLF7miD1jFAj5+pi98Bk4KOVzt+euN2gojNO0XIHQkn8WKe16iERpKHeAQOlA+RIF+XKIRmgaaHhqfd4xCpAShqc9UaGDNITSyzB6IukVRCF25+FGfETqlLMLnZ/DESgJZRFaIlbNGwIlz5F/DbITuJvQ/I1f2qOtOYhD6ptCKPnRlDrvu5ub2rLsLrehjV9a461F2Tk/769vOmwvN1YOYCdKFXyOERufYKdLFX/L55ztfh8bnzfF/s2WEnqyMFz5DrBzcyIvrC218Tmr0rbz82Sjyg0BChbz872rHi7hBnEw8yIs7C43PMXOhJx936dQanZvgvxP7auez8Lmy22omNDbXzbX69dBU55Q94pVuulWFRuea7cLnz/LECkSS+pbT+nTP3avscqdAd+olj9pC43OrVvrzhz7wGWKkx0NWAD00hFLaui9zK6Ep0MVy9KaglxTa+Ny21WbnJChFE6Ep0AiNz4DQANSu6WcMFOjCWf6SXK5DQ9pS/N0161ePqUOXxNJDAyeFFGhA6H3nhIDQFGhAaACEpkADQqMwNK3Q2I3QAAgdtCpToBEagB4zHqZAQ0mpAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAObwH7Tct5MePA8sAAAAAElFTkSuQmCC</script>
+
+<!-- ====================== THREE.JS ====================== -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ====================== LOAD DATA ======================
+const DATA = JSON.parse(document.getElementById('flight-data').textContent);
+const WORLD_MASK_B64 = document.getElementById('world-mask').textContent.trim();
+const { airports, routes } = DATA;
+const APT = Object.fromEntries(airports.map(a => [a.iata, a]));
+
+// Region human labels
+const REGION_NAME = {
+  NA: 'N. AMÉRICA', SA: 'S. AMÉRICA', EU: 'EUROPA', ME: 'M. ORIENTE',
+  AF: 'ÁFRICA', SAS: 'S. ASIA', EA: 'E. ASIA', SEA: 'SE ASIA', OC: 'OCEANÍA',
+};
+
+// ====================== SCENE SETUP ======================
+const canvas = document.getElementById('globe-canvas');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000408, 0.04);
+
+const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0.3, 7.6); // initial; overridden each frame by zoom loop
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+
+const globeGroup = new THREE.Group();
+scene.add(globeGroup);
+
+const R = 2.0;
+
+// ====================== STARS ======================
+{
+  const n = 3000;
+  const positions = new Float32Array(n * 3);
+  const sizes = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = 60 + Math.random() * 40;
+    const t = Math.random() * Math.PI * 2;
+    const p = Math.acos(2 * Math.random() - 1);
+    positions[i*3]   = r * Math.sin(p) * Math.cos(t);
+    positions[i*3+1] = r * Math.sin(p) * Math.sin(t);
+    positions[i*3+2] = r * Math.cos(p);
+    sizes[i] = Math.random() * 1.2 + 0.3;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    color: 0xaaccff, size: 0.5, sizeAttenuation: true,
+    transparent: true, opacity: 0.5, depthWrite: false,
+  });
+  scene.add(new THREE.Points(geo, mat));
+}
+
+// ====================== DARK CORE SPHERE ======================
+{
+  const geo = new THREE.SphereGeometry(R * 0.995, 96, 96);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uDeep: { value: new THREE.Color(0x000408) },
+      uRim:  { value: new THREE.Color(0x002a3a) },
+      uHot:  { value: new THREE.Color(0x00b0d0) },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position,1.0);
+        vV = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform vec3 uDeep, uRim, uHot;
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        float f = pow(1.0 - max(dot(vN,vV),0.0), 2.0);
+        vec3 c = mix(uDeep, uRim, f);
+        c += uHot * pow(f, 6.0) * 0.6;
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  });
+  globeGroup.add(new THREE.Mesh(geo, mat));
+}
+
+// ====================== ATMOSPHERE ======================
+{
+  const geo = new THREE.SphereGeometry(R * 1.2, 64, 64);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uC: { value: new THREE.Color(0x00e5ff) } },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position,1.0);
+        vV = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform vec3 uC;
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        float f = pow(1.0 - abs(dot(vN,vV)), 3.0);
+        gl_FragColor = vec4(uC, f * 0.35);
+      }`,
+    transparent: true, side: THREE.BackSide,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  globeGroup.add(new THREE.Mesh(geo, mat));
+}
+
+// ====================== SYNC PULSE ======================
+// A bright ring that expands around the globe when a new snapshot arrives.
+// Implemented as a flat torus-like geometry (large ring) that grows and fades.
+let pulseStartTime = -10; // -10 = inactive
+let pulseMesh;
+{
+  // RingGeometry: inner & outer radius. We start with a thin ring around R*1.05.
+  const geo = new THREE.RingGeometry(R * 1.04, R * 1.08, 128, 1);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uStart: { value: -10 },
+      uColor: { value: new THREE.Color(0x00e5ff) },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float uTime, uStart;
+      uniform vec3 uColor;
+      varying vec2 vUv;
+      void main(){
+        float age = uTime - uStart;
+        if (age < 0.0 || age > 1.8) discard;
+        float t = age / 1.8;
+        // Bright center of the ring (uv.y is across the ring's thickness)
+        float band = 1.0 - abs(vUv.y - 0.5) * 2.0;
+        band = pow(band, 1.8);
+        float fadeIn  = smoothstep(0.0, 0.1, t);
+        float fadeOut = 1.0 - smoothstep(0.4, 1.0, t);
+        float a = band * fadeIn * fadeOut * 1.2;
+        gl_FragColor = vec4(uColor, a);
+      }`,
+    transparent: true, side: THREE.DoubleSide,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  pulseMesh = new THREE.Mesh(geo, mat);
+  pulseMesh.scale.set(1, 1, 1);
+  pulseMesh.visible = false;
+  globeGroup.add(pulseMesh);
+}
+
+function triggerSyncPulse() {
+  pulseStartTime = performance.now() / 1000;
+  pulseMesh.material.uniforms.uStart.value = pulseStartTime;
+}
+const _pulseScratch = new THREE.Vector3();
+
+// ====================== LAT/LON GRID ======================
+{
+  const mat = new THREE.LineBasicMaterial({ color: 0x0a3a4a, transparent: true, opacity: 0.5 });
+  for (let lat = -75; lat <= 75; lat += 15) {
+    const pts = [];
+    const phi = (90 - lat) * Math.PI / 180;
+    const r = R * 1.001 * Math.sin(phi);
+    const y = R * 1.001 * Math.cos(phi);
+    for (let a = 0; a <= 360; a += 3) {
+      const t = a * Math.PI / 180;
+      pts.push(new THREE.Vector3(r*Math.cos(t), y, r*Math.sin(t)));
+    }
+    globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  }
+  for (let lon = 0; lon < 360; lon += 15) {
+    const pts = [];
+    const theta = lon * Math.PI / 180;
+    for (let a = 0; a <= 360; a += 3) {
+      const phi = a * Math.PI / 180;
+      const r = R * 1.001 * Math.sin(phi);
+      const y = R * 1.001 * Math.cos(phi);
+      pts.push(new THREE.Vector3(r*Math.cos(theta), y, r*Math.sin(theta)));
+    }
+    globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  }
+  // equator: bolder
+  {
+    const pts = [];
+    for (let a = 0; a <= 360; a += 1) {
+      const t = a * Math.PI / 180;
+      pts.push(new THREE.Vector3(R*1.002*Math.cos(t), 0, R*1.002*Math.sin(t)));
+    }
+    const m = new THREE.LineBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.35 });
+    globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m));
+  }
+}
+
+// ====================== LAT/LON HELPERS ======================
+function latLonToVec3(lat, lon, radius = R) {
+  const phi = (90 - lat) * Math.PI / 180;
+  const theta = (lon + 180) * Math.PI / 180;
+  return new THREE.Vector3(
+    -radius * Math.sin(phi) * Math.cos(theta),
+     radius * Math.cos(phi),
+     radius * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+// pre-compute airport positions
+airports.forEach(a => { a.pos = latLonToVec3(a.lat, a.lon, R * 1.005); });
+
+// ====================== LAND DOTS (cyan, from mask) ======================
+function buildLandDots(mc) {
+  const ctx = mc.getContext('2d', { willReadFrequently: true });
+  const W = mc.width, H = mc.height;
+  const d = ctx.getImageData(0,0,W,H).data;
+  function isLand(lat, lon) {
+    let x = Math.floor(((lon + 180) / 360) * W);
+    let y = Math.floor(((90 - lat) / 180) * H);
+    if (x<0) x=0; if (x>=W) x=W-1;
+    if (y<0) y=0; if (y>=H) y=H-1;
+    return d[(y*W + x)*4] > 128;
+  }
+  const N = 28000;
+  const positions = [];
+  const colors = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (i / (N - 1)) * 2;
+    const radius = Math.sqrt(1 - y*y);
+    const theta = golden * i;
+    const x = Math.cos(theta) * radius;
+    const z = Math.sin(theta) * radius;
+    const lat = Math.asin(y) * 180 / Math.PI;
+    let lon = Math.atan2(z, -x) * 180 / Math.PI - 180;
+    if (lon < -180) lon += 360;
+    if (lon > 180) lon -= 360;
+    if (isLand(lat, lon)) {
+      const r = R * 1.003;
+      positions.push(x*r, y*r, z*r);
+      // brighter near equator, dim toward poles for that "data viz" feel
+      const b = 0.55 + Math.random() * 0.45;
+      colors.push(0.0 * b, 0.85 * b, 1.0 * b);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uSize: { value: 1.8 * renderer.getPixelRatio() } },
+    vertexShader: `
+      attribute vec3 color;
+      varying vec3 vC; varying vec3 vN; varying vec3 vV;
+      uniform float uSize;
+      void main(){
+        vC = color;
+        vN = normalize(normalMatrix * normalize(position));
+        vec4 mv = modelViewMatrix * vec4(position,1.0);
+        vV = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = uSize;
+      }`,
+    fragmentShader: `
+      varying vec3 vC; varying vec3 vN; varying vec3 vV;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5;
+        float d = length(c);
+        if (d > 0.5) discard;
+        float f = max(dot(vN, vV), 0.0);
+        if (f < 0.02) discard;
+        float a = smoothstep(0.5, 0.1, d) * f;
+        gl_FragColor = vec4(vC, a * 0.95);
+      }`,
+    transparent: true, depthWrite: false,
+  });
+  globeGroup.add(new THREE.Points(geo, mat));
+}
+
+{
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth;
+    cv.height = img.naturalHeight;
+    cv.getContext('2d').drawImage(img, 0, 0);
+    buildLandDots(cv);
+  };
+  img.src = 'data:image/png;base64,' + WORLD_MASK_B64;
+}
+
+// ====================== AIRPORT MARKERS ======================
+const apGroup = new THREE.Group();
+globeGroup.add(apGroup);
+
+const maxHub = Math.max(...airports.map(a => a.hub));
+
+airports.forEach(a => {
+  const hubNorm = a.hub / maxHub;
+  const size = 0.018 + hubNorm * 0.035;
+
+  // outer ring
+  const ringGeo = new THREE.RingGeometry(size * 0.9, size * 1.15, 32);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x00e5ff, transparent: true, opacity: 0.7,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.copy(a.pos);
+  ring.lookAt(ring.position.clone().multiplyScalar(2));
+  apGroup.add(ring);
+
+  // inner dot
+  const dotGeo = new THREE.CircleGeometry(size * 0.55, 20);
+  const dotMat = new THREE.MeshBasicMaterial({
+    color: 0xaaffff, transparent: true, opacity: 1,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  const dot = new THREE.Mesh(dotGeo, dotMat);
+  dot.position.copy(a.pos).multiplyScalar(1.001);
+  dot.lookAt(dot.position.clone().multiplyScalar(2));
+  apGroup.add(dot);
+
+  // pulsing ring (only for major hubs)
+  let pulseRing = null;
+  if (hubNorm > 0.45) {
+    const pgeo = new THREE.RingGeometry(size * 1.3, size * 1.5, 32);
+    const pmat = new THREE.MeshBasicMaterial({
+      color: 0x00e5ff, transparent: true, opacity: 0.6,
+      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    pulseRing = new THREE.Mesh(pgeo, pmat);
+    pulseRing.position.copy(a.pos).multiplyScalar(1.001);
+    pulseRing.lookAt(pulseRing.position.clone().multiplyScalar(2));
+    apGroup.add(pulseRing);
+  }
+
+  a._ring = ring;
+  a._dot = dot;
+  a._pulse = pulseRing;
+  a._pulseT = Math.random() * Math.PI * 2;
+  a._size = size;
+  a._highlight = 0;
+});
+
+// ====================== AIRCRAFT SYSTEM (OpenSky ADS-B) ======================
+// We render up to MAX_AIRCRAFT points in a single THREE.Points object.
+// Each aircraft has lat/lon/alt/heading/velocity. Between snapshots (every 60s),
+// we extrapolate position with great-circle kinematics so motion looks smooth.
+
+const MAX_AIRCRAFT = 12000;
+const TRAIL_LEN = 100;         // points per historical trail (100 × 3min ≈ 5h coverage)
+const REFRESH_MS = 180_000;    // ADS-B polling interval (3 min)
+const DEAD_RECKON_HZ = 2;      // position update rate (Hz)
+const CONTRAIL_REBUILD_MS = 2500; // baseline contrail recompute interval (2.5s)
+const MIN_REAL_HISTORY = 2;    // need ≥ this many real samples before showing real trail
+const STALE_AIRCRAFT_MS = 600_000; // drop aircraft slots not seen in 10 min
+
+// ---- Zoom state ----
+// Camera distance bounds. R = globe radius (2.0). At 3.5R we're nearly at the surface,
+// at 12R we see the whole globe from afar.
+const ZOOM_MIN = 3.5;          // closest (zoomed in)
+const ZOOM_MAX = 12.0;         // furthest (zoomed out)
+let zoomCurrent = 7.6;         // current camera distance from origin
+let zoomTarget  = 7.6;         // smoothed target (eased toward by 0.12 per frame)
+
+// Aircraft data store (parallel arrays for performance)
+const ac = {
+  count: 0,
+  // per-aircraft state
+  icao24:    new Array(MAX_AIRCRAFT),
+  callsign:  new Array(MAX_AIRCRAFT),
+  country:   new Array(MAX_AIRCRAFT),
+  lat:       new Float32Array(MAX_AIRCRAFT),
+  lon:       new Float32Array(MAX_AIRCRAFT),
+  alt:       new Float32Array(MAX_AIRCRAFT),  // metres
+  vel:       new Float32Array(MAX_AIRCRAFT),  // m/s
+  heading:   new Float32Array(MAX_AIRCRAFT),  // radians
+  onGround:  new Uint8Array(MAX_AIRCRAFT),
+  // historical trail: circular buffer of past positions per aircraft
+  histLat:   new Float32Array(MAX_AIRCRAFT * TRAIL_LEN),
+  histLon:   new Float32Array(MAX_AIRCRAFT * TRAIL_LEN),
+  histAlt:   new Float32Array(MAX_AIRCRAFT * TRAIL_LEN),
+  histHead:  new Uint16Array(MAX_AIRCRAFT),     // index of next slot to write
+  histDepth: new Uint16Array(MAX_AIRCRAFT),     // how many real samples (0..TRAIL_LEN)
+  lastSeenMs: new Float64Array(MAX_AIRCRAFT),   // performance.now of last update — for slot reuse
+};
+
+// Map ICAO24 → slot index, for identity-persistent updates across snapshots.
+const acByIcao = new Map();
+// Free slot list (for aircraft that have aged out)
+const freeSlots = [];
+// Last time we appended a sample to histories (so we don't sample too often)
+let lastHistorySampleMs = 0;
+
+// ---- The points cloud (heads) ----
+const headGeo = new THREE.BufferGeometry();
+const headPositions = new Float32Array(MAX_AIRCRAFT * 3);
+const headColors = new Float32Array(MAX_AIRCRAFT * 3);
+const headSizes = new Float32Array(MAX_AIRCRAFT);
+const headAlpha = new Float32Array(MAX_AIRCRAFT);
+headGeo.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
+headGeo.setAttribute('aColor',   new THREE.BufferAttribute(headColors, 3));
+headGeo.setAttribute('aSize',    new THREE.BufferAttribute(headSizes, 1));
+headGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(headAlpha, 1));
+headGeo.setDrawRange(0, 0);
+
+const headMat = new THREE.ShaderMaterial({
+  uniforms: { uPixelRatio: { value: renderer.getPixelRatio() } },
+  vertexShader: `
+    attribute vec3 aColor;
+    attribute float aSize;
+    attribute float aAlpha;
+    varying vec3 vC;
+    varying float vA;
+    uniform float uPixelRatio;
+    varying float vVisible;
+    void main(){
+      vC = aColor;
+      vA = aAlpha;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      // backface cull: hide if behind globe (normal dot view)
+      vec3 worldPos = position;
+      vec3 n = normalize(worldPos);
+      vec3 viewDir = normalize(cameraPosition - (modelMatrix * vec4(worldPos,1.0)).xyz);
+      // we work in world space; transform normal to world too
+      vec3 nw = normalize((modelMatrix * vec4(n, 0.0)).xyz);
+      vVisible = step(0.0, dot(nw, viewDir));
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = aSize * uPixelRatio;
+    }`,
+  fragmentShader: `
+    varying vec3 vC;
+    varying float vA;
+    varying float vVisible;
+    void main(){
+      if (vVisible < 0.5) discard;
+      vec2 c = gl_PointCoord - 0.5;
+      float d = length(c);
+      if (d > 0.5) discard;
+      float core = smoothstep(0.5, 0.0, d);
+      float halo = smoothstep(0.5, 0.25, d);
+      vec3 col = vC + vec3(halo) * 0.35;
+      gl_FragColor = vec4(col, core * vA);
+    }`,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+});
+const headPoints = new THREE.Points(headGeo, headMat);
+globeGroup.add(headPoints);
+
+// ---- Trails: one big LineSegments with all trails packed in ----
+// We pack each aircraft's trail as (TRAIL_LEN-1) line segments, each 2 vertices.
+const TRAIL_VERTS = (TRAIL_LEN - 1) * 2;
+const trailGeo = new THREE.BufferGeometry();
+const trailPositions = new Float32Array(MAX_AIRCRAFT * TRAIL_VERTS * 3);
+const trailAlphas    = new Float32Array(MAX_AIRCRAFT * TRAIL_VERTS);
+const trailColors    = new Float32Array(MAX_AIRCRAFT * TRAIL_VERTS * 3);
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+trailGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(trailAlphas, 1));
+trailGeo.setAttribute('aColor',   new THREE.BufferAttribute(trailColors, 3));
+trailGeo.setDrawRange(0, 0);
+
+const trailMat = new THREE.ShaderMaterial({
+  vertexShader: `
+    attribute float aAlpha;
+    attribute vec3 aColor;
+    varying float vA;
+    varying vec3 vC;
+    varying float vVisible;
+    void main(){
+      vA = aAlpha;
+      vC = aColor;
+      vec3 n = normalize(position);
+      vec3 viewDir = normalize(cameraPosition - (modelMatrix * vec4(position,1.0)).xyz);
+      vec3 nw = normalize((modelMatrix * vec4(n, 0.0)).xyz);
+      vVisible = step(0.0, dot(nw, viewDir));
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    varying float vA;
+    varying vec3 vC;
+    varying float vVisible;
+    void main(){
+      if (vVisible < 0.5) discard;
+      gl_FragColor = vec4(vC, vA);
+    }`,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+});
+const trailLines = new THREE.LineSegments(trailGeo, trailMat);
+globeGroup.add(trailLines);
+
+// ---- Coloring by altitude ----
+// 0-3km → cyan, 3-9km → white-cyan, 9-11km → white, >11km → amber
+function altColor(altM, out) {
+  const t = Math.max(0, Math.min(1, altM / 12000));
+  let r, g, b;
+  if (t < 0.7) {
+    // cyan → white (most planes are here)
+    const k = t / 0.7;
+    r = 0.3 + k * 0.7;
+    g = 0.95;
+    b = 1.0;
+  } else {
+    // white → amber (very high cruise)
+    const k = (t - 0.7) / 0.3;
+    r = 1.0;
+    g = 0.95 - k * 0.25;
+    b = 1.0 - k * 0.6;
+  }
+  out[0] = r; out[1] = g; out[2] = b;
+}
+
+// ---- Lat/lon → 3D position at given altitude (km above surface scaled) ----
+const tmpColor = [0,0,0];
+function setHeadPosition(i, lat, lon, alt) {
+  // altitude scaled: 0..12km maps to 0..0.04 of globe radius
+  const altScale = 1 + (alt / 12000) * 0.018;
+  const v = latLonToVec3(lat, lon, R * altScale * 1.006);
+  headPositions[i*3]   = v.x;
+  headPositions[i*3+1] = v.y;
+  headPositions[i*3+2] = v.z;
+}
+
+// ---- Great-circle dead-reckoning ----
+// Given lat/lon (deg), heading (rad clockwise from north), distance (m),
+// produce new lat/lon. Earth radius for kinematics: 6371000m.
+const EARTH_R = 6_371_000;
+function advancePosition(lat, lon, heading, dist) {
+  const φ1 = lat * Math.PI / 180;
+  const λ1 = lon * Math.PI / 180;
+  const δ = dist / EARTH_R;
+  const sinφ1 = Math.sin(φ1), cosφ1 = Math.cos(φ1);
+  const sinδ = Math.sin(δ), cosδ = Math.cos(δ);
+  const sinθ = Math.sin(heading), cosθ = Math.cos(heading);
+  const sinφ2 = sinφ1*cosδ + cosφ1*sinδ*cosθ;
+  const φ2 = Math.asin(sinφ2);
+  const y = sinθ * sinδ * cosφ1;
+  const x = cosδ - sinφ1 * sinφ2;
+  const λ2 = λ1 + Math.atan2(y, x);
+  return [φ2 * 180 / Math.PI, ((λ2 * 180 / Math.PI + 540) % 360) - 180];
+}
+
+// ---- Apply a snapshot from OpenSky / adsb.lol ----
+// Identity-persistent: aircraft are tracked by ICAO24 across snapshots so that
+// each one keeps its history of past positions. Slots are reused when aircraft
+// disappear from the feed for a long time.
+// ====================== TRAIL PERSISTENCE ======================
+// We persist the historical trail of each aircraft to localStorage so it
+// survives page reloads. This is what lets you see real trans-continental
+// routes after running the page for hours/days.
+//
+// Storage strategy:
+// - One JSON blob under key 'gfi.trails.v1'
+// - Per aircraft: { icao24, lastSeen (ms), country, samples: [[lat,lon,alt], ...] }
+// - Save is debounced (max once every 30s) to avoid hammering localStorage
+// - Prune entries unseen for >24h on each save
+// - Cap blob size: if over PERSIST_MAX_BYTES, drop oldest entries until it fits
+
+const PERSIST_KEY = 'gfi.trails.v1';
+const PERSIST_DEBOUNCE_MS = 30_000;
+const PERSIST_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h
+const PERSIST_MAX_BYTES = 4 * 1024 * 1024;       // 4MB cap
+
+let lastPersistMs = 0;
+let pendingPersist = false;
+
+function loadPersistedTrails() {
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object' || !data.aircraft) return null;
+    const now = Date.now();
+    // Prune anything older than 24h while loading
+    for (const icao of Object.keys(data.aircraft)) {
+      if (now - (data.aircraft[icao].lastSeen || 0) > PERSIST_MAX_AGE_MS) {
+        delete data.aircraft[icao];
+      }
+    }
+    return data.aircraft;
+  } catch (e) {
+    console.warn('[PERSIST] load failed:', e.message);
+    return null;
+  }
+}
+
+function savePersistedTrails() {
+  const now = performance.now();
+  if (now - lastPersistMs < PERSIST_DEBOUNCE_MS) {
+    // Schedule a save once the debounce expires, if not already pending
+    if (!pendingPersist) {
+      pendingPersist = true;
+      setTimeout(() => {
+        pendingPersist = false;
+        savePersistedTrails();
+      }, PERSIST_DEBOUNCE_MS - (now - lastPersistMs));
+    }
+    return;
+  }
+  lastPersistMs = now;
+  try {
+    const nowMs = Date.now();
+    // Build the blob from current aircraft state
+    const aircraft = {};
+    for (let i = 0; i < ac.count; i++) {
+      if (!ac.icao24[i]) continue;
+      // Skip simulated aircraft — they have hex starting with 'fk'
+      if (ac.icao24[i].startsWith('fk')) continue;
+      const depth = ac.histDepth[i];
+      if (depth < 1) continue;
+      const head = ac.histHead[i];
+      const base = i * TRAIL_LEN;
+      const samples = [];
+      // Walk oldest → newest
+      for (let k = 0; k < depth; k++) {
+        const idx = (head - depth + k + TRAIL_LEN * 2) % TRAIL_LEN;
+        samples.push([
+          ac.histLat[base + idx],
+          ac.histLon[base + idx],
+          ac.histAlt[base + idx],
+        ]);
+      }
+      aircraft[ac.icao24[i]] = {
+        icao24: ac.icao24[i],
+        lastSeen: nowMs,
+        country: ac.country[i],
+        samples,
+      };
+    }
+    // Also merge in any persisted aircraft we currently don't have in memory
+    // (they might come back later and we want their old history available)
+    try {
+      const existing = JSON.parse(localStorage.getItem(PERSIST_KEY) || 'null');
+      if (existing && existing.aircraft) {
+        for (const icao of Object.keys(existing.aircraft)) {
+          if (!aircraft[icao] && (nowMs - existing.aircraft[icao].lastSeen) < PERSIST_MAX_AGE_MS) {
+            aircraft[icao] = existing.aircraft[icao];
+          }
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    let blob = JSON.stringify({ savedAt: nowMs, aircraft });
+    // Size cap: if over limit, drop oldest until we fit
+    if (blob.length > PERSIST_MAX_BYTES) {
+      const sorted = Object.values(aircraft).sort((a,b) => a.lastSeen - b.lastSeen);
+      while (blob.length > PERSIST_MAX_BYTES && sorted.length > 100) {
+        const oldest = sorted.shift();
+        delete aircraft[oldest.icao24];
+        blob = JSON.stringify({ savedAt: nowMs, aircraft });
+      }
+    }
+    localStorage.setItem(PERSIST_KEY, blob);
+  } catch (e) {
+    if (e && e.name === 'QuotaExceededError') {
+      // Storage full: clear and start fresh
+      console.warn('[PERSIST] quota exceeded, clearing');
+      try { localStorage.removeItem(PERSIST_KEY); } catch (_) {}
+    } else {
+      console.warn('[PERSIST] save failed:', e.message);
+    }
+  }
+}
+
+// On load, fetch the persisted blob and hold it in a global. Aircraft that
+// appear in the first real snapshot will get their history pre-populated from
+// this blob (matching by ICAO24).
+const PERSISTED_TRAILS = loadPersistedTrails() || {};
+const persistedTrailCount = Object.keys(PERSISTED_TRAILS).length;
+if (persistedTrailCount > 0) {
+  console.log(`[PERSIST] loaded ${persistedTrailCount} aircraft histories from previous session`);
+}
+
+function applySnapshot(states) {
+  const nowMs = performance.now();
+  // Detect if this snapshot contains real data (not fallback). If so, and we
+  // currently have leftover simulated aircraft (hex prefix 'fk'), purge them
+  // immediately so they don't pollute counts and trails.
+  const firstRealIcao = states.length > 0 ? (states[0][0] || '') : '';
+  const isRealSnapshot = firstRealIcao && !firstRealIcao.startsWith('fk');
+  if (isRealSnapshot) {
+    for (let i = 0; i < ac.count; i++) {
+      if (ac.icao24[i] && ac.icao24[i].startsWith('fk')) {
+        // simulated aircraft from fallback — purge it
+        acByIcao.delete(ac.icao24[i]);
+        ac.icao24[i] = '';
+        ac.histDepth[i] = 0;
+        ac.histHead[i] = 0;
+        freeSlots.push(i);
+      }
+    }
+  }
+
+  // Mark all current slots stale; we'll un-mark the ones that appear in this snapshot.
+  // (We'll use a temporary set of "touched" slots.)
+  const touched = new Set();
+
+  let assigned = 0;
+  for (let s = 0; s < states.length && assigned < MAX_AIRCRAFT; s++) {
+    const v = states[s];
+    const icao = v[0] || '';
+    if (!icao) continue;
+
+    let slot = acByIcao.get(icao);
+    let isNew = false;
+    if (slot === undefined) {
+      // Allocate a new slot: either from the free list or extend the active range
+      if (freeSlots.length > 0) {
+        slot = freeSlots.pop();
+      } else if (ac.count < MAX_AIRCRAFT) {
+        slot = ac.count;
+        ac.count++;
+      } else {
+        // Cap reached: skip this aircraft. Could implement LRU eviction but rare.
+        continue;
+      }
+      acByIcao.set(icao, slot);
+      isNew = true;
+      // Reset history for new slot
+      ac.histHead[slot] = 0;
+      ac.histDepth[slot] = 0;
+      // If we have persisted history for this ICAO from a previous session,
+      // restore it now. Each sample = [lat, lon, alt] in chronological order.
+      const persisted = PERSISTED_TRAILS[icao];
+      if (persisted && Array.isArray(persisted.samples)) {
+        // Keep at most TRAIL_LEN-1 samples (leave room for current snapshot point)
+        const samples = persisted.samples.slice(-(TRAIL_LEN - 1));
+        for (const s of samples) {
+          if (Array.isArray(s) && s.length >= 2) {
+            pushHistorySample(slot, s[0], s[1], s[2] || 0);
+          }
+        }
+        // Once restored, remove from PERSISTED_TRAILS so we don't re-restore
+        delete PERSISTED_TRAILS[icao];
+      }
+    }
+
+    ac.icao24[slot]   = icao;
+    ac.callsign[slot] = (v[1] || '').trim() || '———';
+    ac.country[slot]  = v[2] || 'UNKNOWN';
+    ac.lon[slot]      = v[5] || 0;
+    ac.lat[slot]      = v[6] || 0;
+    ac.alt[slot]      = v[7] || v[13] || 0;
+    ac.onGround[slot] = v[8] ? 1 : 0;
+    ac.vel[slot]      = v[9] || 0;
+    ac.heading[slot]  = ((v[10] || 0) * Math.PI / 180);
+    ac.lastSeenMs[slot] = nowMs;
+
+    // Append this REAL position to the history buffer (one entry per snapshot,
+    // independent of the dead-reckoning sampling. Snapshots are the ground truth.)
+    if (!ac.onGround[slot]) {
+      pushHistorySample(slot, ac.lat[slot], ac.lon[slot], ac.alt[slot]);
+    }
+    touched.add(slot);
+    assigned++;
+  }
+
+  // Sweep: any slot in the active range NOT touched AND stale → free it.
+  // (Aircraft that vanished. They reappear: get a fresh slot.)
+  for (let i = 0; i < ac.count; i++) {
+    if (touched.has(i)) continue;
+    if (nowMs - ac.lastSeenMs[i] > STALE_AIRCRAFT_MS) {
+      const oldIcao = ac.icao24[i];
+      if (oldIcao) acByIcao.delete(oldIcao);
+      ac.icao24[i] = '';
+      ac.histDepth[i] = 0;
+      ac.histHead[i] = 0;
+      freeSlots.push(i);
+    }
+  }
+
+  // when snapshot count shrinks, draw range still covers all slots (free slots will
+  // have zero alpha set in refreshHeadAttributes)
+  headGeo.setDrawRange(0, ac.count);
+  trailGeo.setDrawRange(0, ac.count * TRAIL_VERTS);
+  refreshHeadAttributes();
+
+  // Persist trail history (debounced inside the function)
+  if (isRealSnapshot) {
+    savePersistedTrails();
+  }
+}
+
+// Append a sample to the circular history buffer for one aircraft
+function pushHistorySample(slot, lat, lon, alt) {
+  const base = slot * TRAIL_LEN;
+  const head = ac.histHead[slot];
+  ac.histLat[base + head] = lat;
+  ac.histLon[base + head] = lon;
+  ac.histAlt[base + head] = alt;
+  ac.histHead[slot] = (head + 1) % TRAIL_LEN;
+  if (ac.histDepth[slot] < TRAIL_LEN) ac.histDepth[slot]++;
+}
+
+function refreshHeadAttributes() {
+  // size + color from altitude / on-ground
+  for (let i = 0; i < ac.count; i++) {
+    if (!ac.icao24[i]) {
+      // free slot — make invisible
+      headAlpha[i] = 0;
+      headSizes[i] = 0;
+      continue;
+    }
+    const onG = ac.onGround[i];
+    const alt = ac.alt[i];
+    altColor(alt, tmpColor);
+    if (onG) {
+      // on the ground: small dim grey-cyan
+      headColors[i*3]   = 0.4;
+      headColors[i*3+1] = 0.7;
+      headColors[i*3+2] = 0.8;
+      headSizes[i] = 3.0;
+      headAlpha[i] = 0.5;
+    } else {
+      headColors[i*3]   = tmpColor[0];
+      headColors[i*3+1] = tmpColor[1];
+      headColors[i*3+2] = tmpColor[2];
+      // size scales modestly with altitude (higher → slightly larger sprite)
+      headSizes[i] = 5.5 + Math.min(1, alt / 11000) * 3.5;
+      headAlpha[i] = 1.0;
+    }
+    setHeadPosition(i, ac.lat[i], ac.lon[i], ac.alt[i]);
+    // also copy trail color
+    for (let j = 0; j < TRAIL_VERTS; j++) {
+      const base = (i * TRAIL_VERTS + j) * 3;
+      trailColors[base]   = headColors[i*3];
+      trailColors[base+1] = headColors[i*3+1];
+      trailColors[base+2] = headColors[i*3+2];
+    }
+  }
+  headGeo.attributes.position.needsUpdate = true;
+  headGeo.attributes.aColor.needsUpdate = true;
+  headGeo.attributes.aSize.needsUpdate = true;
+  headGeo.attributes.aAlpha.needsUpdate = true;
+  trailGeo.attributes.aColor.needsUpdate = true;
+  // Force a visibility pass with the new positions BEFORE rebuilding trails
+  // so trails appear immediately for aircraft in newly-visible regions.
+  tickVisibility();
+  // immediately rebuild trails so contrails appear with the new directions
+  rebuildContrails();
+  contrailTimer = 0; // reset baseline timer
+}
+
+// ---- Per-frame: dead-reckon positions and update trail buffer ----
+let lastTickMs = performance.now();
+let drAccum = 0;
+let contrailTimer = 0;
+let trailZoomMul = 1.0;       // LOD multiplier for contrail length, set by animate loop
+
+// Visibility hint: 1 byte per aircraft, updated ~2Hz by tickVisibility().
+// 0 = aircraft is on back hemisphere or off-screen → skip dead-reckoning + skip trail.
+// 1 = visible-ish → process normally.
+// This is the main perf win when zoomed in: half (or more) of aircraft are
+// hidden and we save the great-circle math on them.
+const visibleHint = new Uint8Array(MAX_AIRCRAFT);
+// Initialize all to visible until first visibility pass runs.
+visibleHint.fill(1);
+let visibilityTimer = 0;
+const VISIBILITY_INTERVAL_S = 0.5;
+
+function tickVisibility() {
+  // Project camera position into globe-local space, then test each aircraft's
+  // surface normal vs the camera direction. Cheap dot product, no full project().
+  _visCamLocal.copy(camera.position);
+  globeGroup.worldToLocal(_visCamLocal);
+  _visCamLocal.normalize();
+  const cx = _visCamLocal.x, cy = _visCamLocal.y, cz = _visCamLocal.z;
+  const threshold = -0.12;
+  let changed = 0;
+  for (let i = 0; i < ac.count; i++) {
+    if (!ac.icao24[i]) { visibleHint[i] = 0; continue; } // free slot
+    const x = headPositions[i*3];
+    const y = headPositions[i*3+1];
+    const z = headPositions[i*3+2];
+    const invLen = 1 / Math.sqrt(x*x + y*y + z*z);
+    const dot = (x*cx + y*cy + z*cz) * invLen;
+    const newVis = (dot > threshold) ? 1 : 0;
+    if (newVis !== visibleHint[i]) changed++;
+    visibleHint[i] = newVis;
+  }
+  // If a meaningful fraction of aircraft changed visibility (rotation/zoom shift),
+  // force a contrail rebuild so newly-revealed aircraft get their trails immediately.
+  if (changed > Math.max(20, ac.count * 0.05)) {
+    contrailTimer = CONTRAIL_REBUILD_MS / 1000;
+  }
+}
+const _visCamLocal = new THREE.Vector3();
+
+function tickAircraft() {
+  const now = performance.now();
+  const dtTotal = (now - lastTickMs) / 1000;
+  if (ac.count === 0) { lastTickMs = now; return; }
+
+  // ---- Visibility hint pass (cheap, ~2Hz) ----
+  visibilityTimer += dtTotal;
+  if (visibilityTimer >= VISIBILITY_INTERVAL_S) {
+    visibilityTimer = 0;
+    tickVisibility();
+  }
+
+  // ---- Dead-reckoning at fixed rate (DEAD_RECKON_HZ) ----
+  // Skip aircraft marked invisible by the visibility hint — they're either on the
+  // far side of the globe or off-screen, so updating their position is wasted work.
+  // When they next come into view, the visibility pass will pick them up and they'll
+  // be one tick out of date (at 2Hz that's 0.5s = ~125m for a jet — invisible).
+  drAccum += dtTotal;
+  const tickInterval = 1 / DEAD_RECKON_HZ; // seconds
+  let advanced = false;
+  while (drAccum >= tickInterval) {
+    drAccum -= tickInterval;
+    for (let i = 0; i < ac.count; i++) {
+      if (!visibleHint[i]) continue;       // skip hidden / free slots
+      if (!ac.icao24[i]) continue;         // explicit safety against free slot
+      if (ac.onGround[i]) continue;
+      const v = ac.vel[i];
+      if (v < 5) continue;
+      const dist = v * tickInterval;
+      const [nlat, nlon] = advancePosition(ac.lat[i], ac.lon[i], ac.heading[i], dist);
+      ac.lat[i] = nlat;
+      ac.lon[i] = nlon;
+      setHeadPosition(i, nlat, nlon, ac.alt[i]);
+    }
+    advanced = true;
+  }
+  if (advanced) {
+    headGeo.attributes.position.needsUpdate = true;
+  }
+
+  // History buffer is built from snapshot data only (see applySnapshot).
+  // We deliberately do NOT push interpolated dead-reckoned points here —
+  // those would be straight lines (dead-reckoning extrapolates the current
+  // heading) and would dilute the real curvature of the flight path.
+  // Real curves only appear when consecutive REAL snapshots show heading changes.
+
+  // ---- Contrails: rebuild far less often than position update ----
+  // The trail mode depends on history depth:
+  //   < MIN_REAL_HISTORY: synthetic (current heading projected back)
+  //   ≥ MIN_REAL_HISTORY: real historical trail
+  // Rebuild every CONTRAIL_REBUILD_MS, plus on new snapshots.
+  contrailTimer += dtTotal;
+  if (contrailTimer * 1000 >= CONTRAIL_REBUILD_MS) {
+    contrailTimer = 0;
+    rebuildContrails();
+  }
+
+  lastTickMs = now;
+}
+
+function rebuildContrails() {
+  for (let i = 0; i < ac.count; i++) {
+    if (!ac.icao24[i] || !visibleHint[i] || ac.onGround[i] || ac.vel[i] < 30) {
+      // free slot, hidden, grounded, or barely moving → zero out trail
+      for (let seg = 0; seg < TRAIL_LEN - 1; seg++) {
+        const ai = i * TRAIL_VERTS + seg * 2;
+        trailAlphas[ai] = 0; trailAlphas[ai+1] = 0;
+      }
+      continue;
+    }
+
+    const depth = ac.histDepth[i];
+    if (depth >= MIN_REAL_HISTORY) {
+      buildRealTrail(i);
+    } else {
+      buildSyntheticTrail(i);
+    }
+  }
+  trailGeo.attributes.position.needsUpdate = true;
+  trailGeo.attributes.aAlpha.needsUpdate = true;
+}
+
+// ---- Real historical trail: walks back through ac.hist* buffers ----
+// The history is a circular buffer. histHead is the NEXT slot to write, so the
+// most recent sample is at (histHead - 1). We walk back from there until we
+// hit (histHead - depth) — the oldest sample we have.
+function buildRealTrail(i) {
+  const depth = ac.histDepth[i];
+  const head = ac.histHead[i];
+  const base = i * TRAIL_LEN;
+
+  // Walk segments from newest (closest to aircraft head, fully opaque) to oldest.
+  // We have `depth` historical samples + the current live position as anchor.
+  // That gives `depth + 1` points, hence `depth` segments to draw.
+  // But our buffer can render up to TRAIL_LEN-1 segments; clip to that.
+  const segCount = Math.min(depth, TRAIL_LEN - 1);
+
+  // First segment connects current live position to most recent history sample
+  let curLat = ac.lat[i];
+  let curLon = ac.lon[i];
+  let curAlt = ac.alt[i];
+  let prevV = latLonToVec3(curLat, curLon, R * (1 + (curAlt / 12000) * 0.018) * 1.006);
+
+  for (let seg = 0; seg < segCount; seg++) {
+    // index in circular buffer, walking BACK from head
+    // (head - 1 - seg) gives newest→oldest order
+    const histIdx = (head - 1 - seg + TRAIL_LEN * 2) % TRAIL_LEN;
+    const lat = ac.histLat[base + histIdx];
+    const lon = ac.histLon[base + histIdx];
+    const alt = ac.histAlt[base + histIdx];
+    const nextV = latLonToVec3(lat, lon, R * (1 + (alt / 12000) * 0.018) * 1.006);
+
+    const ai = i * TRAIL_VERTS + seg * 2;
+    const posBase = ai * 3;
+    trailPositions[posBase]   = prevV.x;
+    trailPositions[posBase+1] = prevV.y;
+    trailPositions[posBase+2] = prevV.z;
+    trailPositions[posBase+3] = nextV.x;
+    trailPositions[posBase+4] = nextV.y;
+    trailPositions[posBase+5] = nextV.z;
+
+    // Soft falloff: brightest at head, fades exponentially, but keeps a tiny
+    // minimum visible floor so very long trails (5h) still trace the full route.
+    // Curve: alpha = 0.06 + 0.94 * pow(1 - t, 2.2)
+    //   t=0 (head)  → alpha = 1.0
+    //   t=0.5       → alpha ≈ 0.27
+    //   t=1 (tail)  → alpha = 0.06 (just visible)
+    const fA = seg / segCount;             // 0..1, distance back from head
+    const fB = (seg + 1) / segCount;
+    const alphaA = 0.06 + 0.94 * Math.pow(1 - fA, 2.2);
+    const alphaB = 0.06 + 0.94 * Math.pow(1 - fB, 2.2);
+    trailAlphas[ai]   = alphaA;
+    trailAlphas[ai+1] = alphaB;
+
+    prevV = nextV;
+  }
+
+  // Zero out any remaining segments (when depth < TRAIL_LEN-1)
+  for (let seg = segCount; seg < TRAIL_LEN - 1; seg++) {
+    const ai = i * TRAIL_VERTS + seg * 2;
+    trailAlphas[ai] = 0; trailAlphas[ai+1] = 0;
+  }
+}
+
+// ---- Synthetic trail (fallback for newly-tracked aircraft) ----
+// Same as before: project backward along current heading.
+function buildSyntheticTrail(i) {
+  // Shorter than real trail so the transition isn't jarring when real history kicks in
+  const synSegCount = Math.min(8, TRAIL_LEN - 1);
+  const totalTailM = ac.vel[i] * 3500 * trailZoomMul;
+  const segLenM = totalTailM / synSegCount;
+  const reverseHeading = ac.heading[i] + Math.PI;
+  const altScale = 1 + (ac.alt[i] / 12000) * 0.018;
+  const radius = R * altScale * 1.006;
+
+  let curLat = ac.lat[i];
+  let curLon = ac.lon[i];
+  let prevV = latLonToVec3(curLat, curLon, radius);
+
+  for (let seg = 0; seg < synSegCount; seg++) {
+    const [nlat, nlon] = advancePosition(curLat, curLon, reverseHeading, segLenM);
+    const nextV = latLonToVec3(nlat, nlon, radius);
+    const base = (i * TRAIL_VERTS + seg * 2) * 3;
+    trailPositions[base]   = prevV.x; trailPositions[base+1] = prevV.y; trailPositions[base+2] = prevV.z;
+    trailPositions[base+3] = nextV.x; trailPositions[base+4] = nextV.y; trailPositions[base+5] = nextV.z;
+
+    const fA = 1 - (seg / synSegCount);
+    const fB = 1 - ((seg + 1) / synSegCount);
+    const alphaA = fA * fA * fA;
+    const alphaB = fB * fB * fB;
+    const ai = i * TRAIL_VERTS + seg * 2;
+    trailAlphas[ai]   = alphaA;
+    trailAlphas[ai+1] = alphaB;
+
+    curLat = nlat; curLon = nlon;
+    prevV = nextV;
+  }
+  // zero out remaining segments
+  for (let seg = synSegCount; seg < TRAIL_LEN - 1; seg++) {
+    const ai = i * TRAIL_VERTS + seg * 2;
+    trailAlphas[ai] = 0; trailAlphas[ai+1] = 0;
+  }
+}
+
+// ====================== OPENSKY FETCH ======================
+const feedStatusEl = document.getElementById('feed-status');
+const feedLabelEl = document.getElementById('feed-label');
+const feedAgeEl = document.getElementById('feed-age');
+const feedCountdownEl = document.getElementById('feed-countdown');
+const feedRetryBtn = document.getElementById('feed-retry');
+
+// Wire up the retry button: clicking it forces an immediate fetch attempt
+// regardless of where we are in the refresh cycle. Useful for diagnosing
+// connectivity (do feeds work right now?) without waiting 3 minutes.
+let retryInFlight = false;
+feedRetryBtn.addEventListener('click', async () => {
+  if (retryInFlight) return;
+  retryInFlight = true;
+  feedRetryBtn.classList.add('spinning');
+  // Cancel the scheduled fetch and force one now
+  nextFetchAt = performance.now() - 1;
+  try {
+    await fetchSnapshot();
+  } finally {
+    feedRetryBtn.classList.remove('spinning');
+    retryInFlight = false;
+  }
+});
+
+let lastFetchOK = 0;        // performance.now of last successful snapshot
+let nextFetchAt = 0;        // performance.now planned for next fetch
+let snapshotTime = 0;       // OpenSky's reported snapshot time (UTC seconds)
+
+function setFeed(state, label) {
+  feedStatusEl.className = 'feed-status ' + state;
+  feedLabelEl.textContent = label;
+}
+
+// ---- Data sources, tried in order until one succeeds ----
+// Each adapter: name, url, parse(json) -> array of state vectors in OpenSky-like shape:
+//   [icao24, callsign, country, _, _, lon, lat, alt_m, onGround, vel_mps, heading_deg, _, _, alt_m]
+const ADSB_LOL_PARSE = (data) => {
+  const list = data.ac || [];
+  return list
+    .filter(a => typeof a.lat === 'number' && typeof a.lon === 'number')
+    .map(a => {
+      const altFt = (a.alt_baro === 'ground') ? 0 : (a.alt_baro || a.alt_geom || 0);
+      const altM = altFt * 0.3048;
+      const onGround = a.alt_baro === 'ground' || altFt < 50;
+      const velMps = (a.gs || 0) * 0.514444;
+      return [
+        a.hex || '',
+        (a.flight || '').trim(),
+        a.r || a.t || 'UNKNOWN',
+        null, null,
+        a.lon, a.lat,
+        altM,
+        onGround ? 1 : 0,
+        velMps,
+        a.track || 0,
+        null, null, altM,
+      ];
+    });
+};
+
+// ---- ICAO24 hex prefix → country mapping (truncated to common ranges) ----
+// ICAO assigns each country a contiguous range of 24-bit aircraft addresses.
+// We only check the high bits (top 8-12) to identify country.
+// Source: ICAO Annex 10, Volume III, Chapter 9 + Wikipedia "List of aircraft registration prefixes".
+function icaoToCountry(hex) {
+  if (!hex || hex.length < 6) return 'UNKNOWN';
+  const v = parseInt(hex.toLowerCase(), 16);
+  if (isNaN(v)) return 'UNKNOWN';
+  // United States: 0xA00000 – 0xAFFFFF
+  if (v >= 0xA00000 && v <= 0xAFFFFF) return 'United States';
+  // Canada: 0xC00000 – 0xC3FFFF
+  if (v >= 0xC00000 && v <= 0xC3FFFF) return 'Canada';
+  // Russia: 0x100000 – 0x1FFFFF
+  if (v >= 0x100000 && v <= 0x1FFFFF) return 'Russia';
+  // United Kingdom: 0x400000 – 0x43FFFF
+  if (v >= 0x400000 && v <= 0x43FFFF) return 'United Kingdom';
+  // Austria: 0x440000 – 0x447FFF
+  if (v >= 0x440000 && v <= 0x447FFF) return 'Austria';
+  // Belgium: 0x448000 – 0x44FFFF
+  if (v >= 0x448000 && v <= 0x44FFFF) return 'Belgium';
+  // Bulgaria: 0x450000 – 0x457FFF
+  if (v >= 0x450000 && v <= 0x457FFF) return 'Bulgaria';
+  // Denmark: 0x458000 – 0x45FFFF
+  if (v >= 0x458000 && v <= 0x45FFFF) return 'Denmark';
+  // Finland: 0x460000 – 0x467FFF
+  if (v >= 0x460000 && v <= 0x467FFF) return 'Finland';
+  // Greece: 0x468000 – 0x46FFFF
+  if (v >= 0x468000 && v <= 0x46FFFF) return 'Greece';
+  // Hungary: 0x470000 – 0x477FFF
+  if (v >= 0x470000 && v <= 0x477FFF) return 'Hungary';
+  // Italy: 0x300000 – 0x33FFFF
+  if (v >= 0x300000 && v <= 0x33FFFF) return 'Italy';
+  // France: 0x380000 – 0x3BFFFF
+  if (v >= 0x380000 && v <= 0x3BFFFF) return 'France';
+  // Germany: 0x3C0000 – 0x3FFFFF
+  if (v >= 0x3C0000 && v <= 0x3FFFFF) return 'Germany';
+  // Netherlands: 0x480000 – 0x487FFF
+  if (v >= 0x480000 && v <= 0x487FFF) return 'Netherlands';
+  // Norway: 0x478000 – 0x47FFFF
+  if (v >= 0x478000 && v <= 0x47FFFF) return 'Norway';
+  // Poland: 0x488000 – 0x48FFFF
+  if (v >= 0x488000 && v <= 0x48FFFF) return 'Poland';
+  // Portugal: 0x490000 – 0x497FFF
+  if (v >= 0x490000 && v <= 0x497FFF) return 'Portugal';
+  // Czech: 0x498000 – 0x49FFFF
+  if (v >= 0x498000 && v <= 0x49FFFF) return 'Czech Republic';
+  // Romania: 0x4A0000 – 0x4A7FFF
+  if (v >= 0x4A0000 && v <= 0x4A7FFF) return 'Romania';
+  // Sweden: 0x4A8000 – 0x4AFFFF
+  if (v >= 0x4A8000 && v <= 0x4AFFFF) return 'Sweden';
+  // Switzerland: 0x4B0000 – 0x4B7FFF
+  if (v >= 0x4B0000 && v <= 0x4B7FFF) return 'Switzerland';
+  // Turkey: 0x4B8000 – 0x4BFFFF
+  if (v >= 0x4B8000 && v <= 0x4BFFFF) return 'Turkey';
+  // Yugoslavia (legacy): 0x4C0000 – 0x4C7FFF
+  if (v >= 0x4C0000 && v <= 0x4C7FFF) return 'Yugoslavia';
+  // Cyprus: 0x4C8000 – 0x4C83FF
+  if (v >= 0x4C8000 && v <= 0x4C83FF) return 'Cyprus';
+  // Ireland: 0x4CA000 – 0x4CAFFF
+  if (v >= 0x4CA000 && v <= 0x4CAFFF) return 'Ireland';
+  // Iceland: 0x4CC000 – 0x4CCFFF
+  if (v >= 0x4CC000 && v <= 0x4CCFFF) return 'Iceland';
+  // Luxembourg: 0x4D0000 – 0x4D03FF
+  if (v >= 0x4D0000 && v <= 0x4D03FF) return 'Luxembourg';
+  // Malta: 0x4D2000 – 0x4D23FF
+  if (v >= 0x4D2000 && v <= 0x4D23FF) return 'Malta';
+  // Monaco: 0x4D4000 – 0x4D43FF
+  if (v >= 0x4D4000 && v <= 0x4D43FF) return 'Monaco';
+  // Spain: 0x340000 – 0x37FFFF
+  if (v >= 0x340000 && v <= 0x37FFFF) return 'Spain';
+  // Japan: 0x840000 – 0x87FFFF
+  if (v >= 0x840000 && v <= 0x87FFFF) return 'Japan';
+  // China: 0x780000 – 0x7BFFFF
+  if (v >= 0x780000 && v <= 0x7BFFFF) return 'China';
+  // South Korea: 0x718000 – 0x71FFFF
+  if (v >= 0x718000 && v <= 0x71FFFF) return 'South Korea';
+  // Hong Kong: 0x880000 – 0x880FFF
+  if (v >= 0x880000 && v <= 0x880FFF) return 'Hong Kong';
+  // Taiwan: 0x899000 – 0x8993FF
+  if (v >= 0x899000 && v <= 0x8993FF) return 'Taiwan';
+  // Singapore: 0x768000 – 0x76FFFF
+  if (v >= 0x768000 && v <= 0x76FFFF) return 'Singapore';
+  // Malaysia: 0x750000 – 0x757FFF
+  if (v >= 0x750000 && v <= 0x757FFF) return 'Malaysia';
+  // Thailand: 0x880800 – 0x8809FF (approximate — actually shared)
+  if (v >= 0x880400 && v <= 0x8807FF) return 'Thailand';
+  // Indonesia: 0x8A0000 – 0x8A7FFF
+  if (v >= 0x8A0000 && v <= 0x8A7FFF) return 'Indonesia';
+  // Philippines: 0x758000 – 0x75FFFF
+  if (v >= 0x758000 && v <= 0x75FFFF) return 'Philippines';
+  // Vietnam: 0x888000 – 0x88FFFF
+  if (v >= 0x888000 && v <= 0x88FFFF) return 'Vietnam';
+  // India: 0x800000 – 0x83FFFF
+  if (v >= 0x800000 && v <= 0x83FFFF) return 'India';
+  // UAE: 0x896000 – 0x8967FF
+  if (v >= 0x896000 && v <= 0x8967FF) return 'United Arab Emirates';
+  // Saudi Arabia: 0x710000 – 0x717FFF
+  if (v >= 0x710000 && v <= 0x717FFF) return 'Saudi Arabia';
+  // Israel: 0x738000 – 0x73FFFF
+  if (v >= 0x738000 && v <= 0x73FFFF) return 'Israel';
+  // Iran: 0x730000 – 0x737FFF
+  if (v >= 0x730000 && v <= 0x737FFF) return 'Iran';
+  // Qatar: 0x06A000 – 0x06A3FF
+  if (v >= 0x06A000 && v <= 0x06A3FF) return 'Qatar';
+  // Brazil: 0xE40000 – 0xE7FFFF
+  if (v >= 0xE40000 && v <= 0xE7FFFF) return 'Brazil';
+  // Mexico: 0x0D0000 – 0x0D7FFF
+  if (v >= 0x0D0000 && v <= 0x0D7FFF) return 'Mexico';
+  // Argentina: 0xE00000 – 0xE3FFFF
+  if (v >= 0xE00000 && v <= 0xE3FFFF) return 'Argentina';
+  // Australia: 0x7C0000 – 0x7FFFFF
+  if (v >= 0x7C0000 && v <= 0x7FFFFF) return 'Australia';
+  // New Zealand: 0xC80000 – 0xC87FFF
+  if (v >= 0xC80000 && v <= 0xC87FFF) return 'New Zealand';
+  // Egypt: 0x010000 – 0x017FFF
+  if (v >= 0x010000 && v <= 0x017FFF) return 'Egypt';
+  // South Africa: 0x008000 – 0x00FFFF
+  if (v >= 0x008000 && v <= 0x00FFFF) return 'South Africa';
+  // Morocco: 0x020000 – 0x027FFF
+  if (v >= 0x020000 && v <= 0x027FFF) return 'Morocco';
+  // Kenya: 0x04C000 – 0x04C3FF
+  if (v >= 0x04C000 && v <= 0x04C3FF) return 'Kenya';
+  // Nigeria: 0x060000 – 0x067FFF
+  if (v >= 0x060000 && v <= 0x067FFF) return 'Nigeria';
+  return 'OTHER';
+}
+
+// ---- Multi-region strategy ----
+// Single global calls return MBs of data and corsproxy.io caps at ~1MB. So we
+// instead make several smaller regional calls (radius 250nm each) in parallel
+// and merge the results. Each region call is ~100-300KB, well under the proxy limit.
+//
+// 12 regions cover all major air traffic centres of the world. Aircraft far from
+// any of these centres won't be captured, but coverage of the busy airspace
+// (Europe, USA, East Asia, etc.) is excellent.
+const REGIONS = [
+  // [name, lat, lon, radius_nm]
+  ['NorthAtlantic', 50,  -30, 700],
+  ['Europe',        50,   10, 700],
+  // US East is very busy — split into two smaller subregions to stay under proxy size limit
+  ['NorthAmericaNE',43,  -73, 500],   // NY, Boston, Toronto, Montreal
+  ['NorthAmericaSE',32,  -85, 500],   // ATL, MIA, Texas east
+  ['NorthAmericaW', 40, -115, 700],
+  ['SouthAmerica', -20,  -55, 800],
+  ['MidEast',       30,   45, 700],
+  ['India',         20,   78, 700],
+  ['EastAsia',      35,  115, 700],
+  ['SEAsia',         5,  110, 700],
+  ['Oceania',      -25,  135, 800],
+  ['Africa',       -10,   25, 700],
+  ['NorthPacific',  45, -170, 700],
+];
+
+// Build a list of URLs to fetch per snapshot, with proxy variants as backups.
+function buildRegionUrls(useProxy) {
+  return REGIONS.map(([name, lat, lon, r]) => {
+    const direct = `https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${r}`;
+    return {
+      region: name,
+      url: useProxy ? ('https://corsproxy.io/?url=' + encodeURIComponent(direct)) : direct,
+    };
+  });
+}
+
+// Try fetching all regions in parallel via the given mode. Returns merged aircraft
+// array or throws if too many regions failed.
+async function fetchRegionalSnapshot(useProxy) {
+  const urls = buildRegionUrls(useProxy);
+  const results = await Promise.allSettled(urls.map(({ region, url }) =>
+    Promise.race([
+      fetch(url, { cache: 'no-store' }).then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+    ]).then(data => ({ region, data }))
+  ));
+
+  // Tally success/fail per region
+  const merged = new Map(); // dedup by hex (icao24)
+  let okCount = 0;
+  const failures = [];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const regionName = urls[i].region;
+    if (r.status === 'fulfilled') {
+      const list = r.value.data.ac || [];
+      for (const a of list) {
+        if (a.hex && typeof a.lat === 'number') merged.set(a.hex, a);
+      }
+      okCount++;
+    } else {
+      failures.push(`${regionName}:${r.reason.message || r.reason}`);
+    }
+  }
+
+  if (okCount === 0) {
+    throw new Error(`all ${REGIONS.length} regions failed: ${failures.slice(0,3).join(', ')}`);
+  }
+  if (failures.length > 0) {
+    console.warn(`[FEED] ${failures.length}/${REGIONS.length} regions failed:`, failures.join(', '));
+  }
+
+  // Convert merged map to OpenSky-style state vector array
+  return Array.from(merged.values()).map(a => {
+    const altFt = (a.alt_baro === 'ground') ? 0 : (a.alt_baro || a.alt_geom || 0);
+    const altM = altFt * 0.3048;
+    const onGround = a.alt_baro === 'ground' || altFt < 50;
+    const velMps = (a.gs || 0) * 0.514444;
+    return [
+      a.hex || '', (a.flight || '').trim(), icaoToCountry(a.hex),
+      null, null, a.lon, a.lat, altM,
+      onGround ? 1 : 0, velMps, a.track || 0,
+      null, null, altM,
+    ];
+  });
+}
+
+const SOURCES = [
+  {
+    name: 'adsb.lol·regional·direct',
+    fetcher: () => fetchRegionalSnapshot(false),
+  },
+  {
+    name: 'adsb.lol·regional·proxy',
+    fetcher: () => fetchRegionalSnapshot(true),
+  },
+];
+
+let activeSourceIdx = 0;
+
+async function fetchSnapshot() {
+  const hadData = lastFetchOK > 0;
+  if (!hadData) {
+    setFeed('loading', 'CONECTANDO · ' + SOURCES[activeSourceIdx].name);
+  }
+  for (let attempt = 0; attempt < SOURCES.length; attempt++) {
+    const src = SOURCES[(activeSourceIdx + attempt) % SOURCES.length];
+    if (!hadData) {
+      setFeed('loading', 'CONECTANDO · ' + src.name);
+    }
+    try {
+      // Each source has a fetcher() that handles its own strategy internally.
+      // For regional sources it makes multiple parallel calls and merges results.
+      const states = await src.fetcher();
+      if (!states || states.length === 0) throw new Error('Empty payload');
+
+      // success!
+      activeSourceIdx = (activeSourceIdx + attempt) % SOURCES.length;
+      snapshotTime = Math.floor(Date.now() / 1000);
+      applySnapshot(states);
+      lastFetchOK = performance.now();
+      nextFetchAt = lastFetchOK + REFRESH_MS;
+      setFeed('live', `EN VIVO · ${src.name} · ${states.length} ac`);
+      triggerSyncPulse();
+      rebuildCountries();
+      refreshCounters();
+      pushTimelineSample(states.length);
+      applyRegionFilter();
+      if (focusedApt) setFocus(focusedApt, false);
+      return true;
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      console.warn(`[FEED] ${src.name} → ${msg}`);
+    }
+  }
+  // all sources failed
+  if (lastFetchOK > 0) {
+    // we had data before — stay on the last snapshot, retry sooner
+    setFeed('error', 'REFRESCO FALLIDO · DATOS ANTERIORES');
+    nextFetchAt = performance.now() + 20_000;  // retry in 20s, don't give up
+  } else {
+    // never had data — fall back to simulated
+    setFeed('error', 'TODAS LAS FUENTES OFFLINE · SIMULADO');
+    nextFetchAt = performance.now() + 30_000;
+  }
+  return false;
+}
+
+function tickFeed() {
+  const now = performance.now();
+  if (lastFetchOK > 0) {
+    const ageS = Math.floor((Date.now()/1000) - snapshotTime);
+    feedAgeEl.textContent = `T+${ageS}s`;
+    const remain = Math.max(0, (nextFetchAt - now) / 1000);
+    feedCountdownEl.textContent = `· refresh ${Math.ceil(remain)}s`;
+  }
+  if (now >= nextFetchAt) {
+    nextFetchAt = now + REFRESH_MS; // prevent re-entry
+    fetchSnapshot();
+  }
+}
+
+// ---- Synthetic fallback (~1500 aircraft scattered along plausible routes) ----
+function loadFallback() {
+  const fakeStates = [];
+  const countries = ['United States','Spain','Germany','Japan','United Kingdom','France','China','United Arab Emirates','India','Brazil','Australia','Canada','Italy','Netherlands','Singapore','Turkey'];
+  // Generate around hubs — denser cluster, more realistic spread
+  for (let i = 0; i < 1500; i++) {
+    const hub = airports[Math.floor(Math.random() * airports.length)];
+    // Gaussian-ish spread, mostly within 8° of the hub
+    const r = Math.abs(randn()) * 6;
+    const angle = Math.random() * Math.PI * 2;
+    const dlat = Math.cos(angle) * r;
+    const dlon = Math.sin(angle) * r / Math.max(0.3, Math.cos(hub.lat * Math.PI / 180));
+    const onGround = Math.random() < 0.04;
+    const alt = onGround ? 0 : (Math.random() < 0.7 ? 9000 + Math.random() * 3000 : 2000 + Math.random() * 6000);
+    const vel = onGround ? 0 : 200 + Math.random() * 80;
+    const head = Math.random() * 360;
+    fakeStates.push([
+      'fk' + i.toString(16), 'SIM' + (1000 + i),
+      countries[i % countries.length],
+      0, 0, hub.lon + dlon, hub.lat + dlat, alt, onGround, vel, head, 0, 0, alt, '0000'
+    ]);
+  }
+  applySnapshot(fakeStates);
+
+  // Pre-populate the historical trail for each fallback aircraft so the visual
+  // isn't empty for the first few minutes. We rewind each aircraft 20 steps
+  // backward along its current heading (each step = REFRESH_MS worth of flight),
+  // matching the spacing that real snapshots will produce.
+  // Cap at 20 sythetic points (not full TRAIL_LEN) so the real trail can overwrite
+  // them within an hour or so.
+  const SYN_PREPOP = 20;
+  for (let i = 0; i < ac.count; i++) {
+    if (!ac.icao24[i] || ac.onGround[i] || ac.vel[i] < 30) continue;
+    const reverseHeading = ac.heading[i] + Math.PI;
+    const stepM = ac.vel[i] * (REFRESH_MS / 1000); // distance per snapshot interval
+    let bLat = ac.lat[i], bLon = ac.lon[i];
+    const samples = [];
+    for (let k = 0; k < SYN_PREPOP; k++) {
+      const [nLat, nLon] = advancePosition(bLat, bLon, reverseHeading, stepM);
+      samples.push([nLat, nLon, ac.alt[i]]);
+      bLat = nLat; bLon = nLon;
+    }
+    samples.reverse();
+    for (const [la, lo, al] of samples) {
+      pushHistorySample(i, la, lo, al);
+    }
+  }
+
+  snapshotTime = Math.floor(Date.now() / 1000);
+  rebuildCountries();
+  refreshCounters();
+  pushTimelineSample(fakeStates.length);
+  applyRegionFilter();
+  if (focusedApt) setFocus(focusedApt, false);
+  setFeed('error', 'FEED OFFLINE · SIMULADO');
+  triggerSyncPulse();
+  // Force trail rebuild now that we have history
+  rebuildContrails();
+}
+
+// Box-Muller for gaussian random
+function randn() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+// (data feed is kicked off at the very end of this script, once all
+//  constants like COUNTRY_CODE and tlSamples have been initialized)
+
+// ====================== INTERACTION ======================
+let rotationY = 0;
+let rotationX = 0.25;
+let targetRotY = 0;
+let targetRotX = 0.25;
+let autoRotate = true;
+let dragging = false;
+let dragStart = { x: 0, y: 0 };
+let rotStart = { x: 0, y: 0 };
+
+canvas.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  autoRotate = false;
+  dragStart = { x: e.clientX, y: e.clientY };
+  rotStart = { x: targetRotX, y: targetRotY };
+});
+window.addEventListener('pointerup', () => {
+  dragging = false;
+  setTimeout(() => { autoRotate = true; }, 3000);
+});
+window.addEventListener('pointermove', (e) => {
+  if (dragging) {
+    targetRotY = rotStart.y + (e.clientX - dragStart.x) * 0.005;
+    targetRotX = Math.max(-1.2, Math.min(1.2, rotStart.x - (e.clientY - dragStart.y) * 0.005));
+  }
+  handleHover(e);
+});
+
+// ---- Smooth wheel zoom (Google Earth style) ----
+// Multiplicative scaling: each scroll tick multiplies/divides the target distance
+// by a factor depending on current distance — slower at close range, faster when far.
+// This makes the perceived zoom speed feel constant across all distances.
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  // Normalize wheel delta across browsers (line vs pixel mode)
+  const lineHeight = 16;
+  const dy = e.deltaMode === 1 ? e.deltaY * lineHeight : e.deltaY;
+  // Multiplicative factor: every 100px of scroll = 12% closer / further
+  const factor = Math.exp(dy * 0.0012);
+  zoomTarget = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomTarget * factor));
+}, { passive: false });
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ====================== HOVER & FOCUS ======================
+const tooltipEl = document.getElementById('tooltip');
+const ttIata = tooltipEl.querySelector('.iata');
+const ttCity = tooltipEl.querySelector('.city');
+let hoveredApt = null;
+let focusedApt = null;
+let panelCycleIx = 0;
+
+function handleHover(e) {
+  const mx = (e.clientX / window.innerWidth) * 2 - 1;
+  const my = -(e.clientY / window.innerHeight) * 2 + 1;
+  let bestApt = null, bestAptD = 0.04;
+  let bestAc = -1, bestAcD = 0.02;
+  const v = new THREE.Vector3();
+  // airports first (priority)
+  airports.forEach(a => {
+    v.copy(a.pos);
+    globeGroup.localToWorld(v);
+    const toCam = camera.position.clone().sub(v).normalize();
+    const normal = v.clone().sub(globeGroup.position).normalize();
+    if (toCam.dot(normal) < 0.1) return;
+    v.project(camera);
+    const dx = v.x - mx, dy = v.y - my;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if (d < bestAptD) { bestAptD = d; bestApt = a; }
+  });
+  // aircraft (only if no airport candidate is closer)
+  if (!bestApt) {
+    for (let i = 0; i < ac.count; i++) {
+      if (ac.onGround[i]) continue;
+      v.set(headPositions[i*3], headPositions[i*3+1], headPositions[i*3+2]);
+      globeGroup.localToWorld(v);
+      const toCam = camera.position.clone().sub(v).normalize();
+      const normal = v.clone().sub(globeGroup.position).normalize();
+      if (toCam.dot(normal) < 0.1) continue;
+      v.project(camera);
+      const dx = v.x - mx, dy = v.y - my;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < bestAcD) { bestAcD = d; bestAc = i; }
+    }
+  }
+
+  if (bestApt) {
+    if (bestApt !== hoveredApt) {
+      hoveredApt = bestApt;
+      ttIata.textContent = bestApt.iata;
+      ttCity.textContent = bestApt.city;
+      tooltipEl.classList.add('v');
+      setFocus(bestApt, true);
+    }
+  } else if (bestAc >= 0) {
+    if (bestAc !== focusedAircraftIdx) {
+      hoveredApt = null;
+      ttIata.textContent = ac.callsign[bestAc].substring(0,7);
+      ttCity.textContent = ac.country[bestAc];
+      tooltipEl.classList.add('v');
+      focusAircraft(bestAc);
+    }
+  } else {
+    if (hoveredApt || focusedAircraftIdx >= 0) {
+      tooltipEl.classList.remove('v');
+    }
+    hoveredApt = null;
+  }
+  if (bestApt || bestAc >= 0) {
+    tooltipEl.style.left = (e.clientX + 16) + 'px';
+    tooltipEl.style.top  = (e.clientY + 16) + 'px';
+  }
+}
+
+function setFocus(apt, fromHover) {
+  focusedApt = apt;
+  focusedAircraftIdx = -1;
+  const ix = airports.indexOf(apt);
+  panelCycleIx = ix;
+
+  // restore default labels (in case we were on aircraft mode)
+  document.getElementById('node-h').textContent = 'NODE FOCUS';
+  document.getElementById('stat1-l').textContent = 'Aviones cerca';
+  document.getElementById('stat2-l').textContent = 'Altitud media';
+  document.getElementById('stat3-l').textContent = 'Vel. media';
+  document.getElementById('stat4-l').textContent = 'Estado';
+  document.getElementById('dests-h').textContent = 'AVIONES EN RADAR';
+
+  document.getElementById('node-ix').textContent = `N° ${String(ix+1).padStart(2,'0')} / ${String(airports.length).padStart(2,'0')}`;
+  document.getElementById('ap-iata').textContent = apt.iata;
+  document.getElementById('ap-name').textContent = apt.name;
+  document.getElementById('ap-loc').textContent = `${apt.city} · ${apt.country} · ${REGION_NAME[apt.region] || apt.region}`;
+
+  // count aircraft within ~3° radius of this airport (rough proxy for nearby traffic)
+  const nearbyR = 3.0; // degrees
+  let nearby = [];
+  for (let i = 0; i < ac.count; i++) {
+    if (ac.onGround[i]) continue;
+    const dLat = ac.lat[i] - apt.lat;
+    const dLon = ((ac.lon[i] - apt.lon + 540) % 360) - 180;
+    if (Math.abs(dLat) > nearbyR || Math.abs(dLon) > nearbyR) continue;
+    nearby.push(i);
+  }
+  const avgAlt = nearby.length ? Math.round(nearby.reduce((s,i) => s + ac.alt[i], 0) / nearby.length) : 0;
+  const avgVel = nearby.length ? Math.round(nearby.reduce((s,i) => s + ac.vel[i], 0) / nearby.length * 3.6) : 0;
+
+  document.getElementById('ap-traffic').textContent = nearby.length;
+  document.getElementById('ap-conn').textContent = avgAlt ? (avgAlt + ' m') : '—';
+  document.getElementById('ap-hub').textContent = avgVel ? (avgVel + ' km/h') : '—';
+  document.getElementById('ap-status').textContent =
+    nearby.length > 40 ? 'CONGESTIONADO' : nearby.length > 15 ? 'ALTO' : 'OPERATIVO';
+
+  // top callsigns nearby
+  const callsigns = nearby.slice(0, 8).map(i => ac.callsign[i].substring(0,7));
+  document.getElementById('ap-dests').innerHTML = callsigns.map(c =>
+    `<span class="dest-chip">${c}</span>`
+  ).join('') || '<span style="color:var(--ink-faint);font-size:9px;letter-spacing:0.2em">— SIN TRÁFICO CERCANO —</span>';
+
+  document.getElementById('ap-lat').textContent = formatLat(apt.lat);
+  document.getElementById('ap-lon').textContent = formatLon(apt.lon);
+}
+
+function focusAircraft(i) {
+  if (i < 0 || i >= ac.count) return;
+  focusedApt = null;
+  focusedAircraftIdx = i;
+  document.getElementById('node-h').textContent = 'AIRCRAFT TRACK';
+  document.getElementById('stat1-l').textContent = 'Altitud';
+  document.getElementById('stat2-l').textContent = 'Velocidad';
+  document.getElementById('stat3-l').textContent = 'Rumbo';
+  document.getElementById('stat4-l').textContent = 'Estado';
+  document.getElementById('dests-h').textContent = 'CONTACTO ADS-B';
+  document.getElementById('node-ix').textContent = `ICAO24 ${ac.icao24[i].toUpperCase()}`;
+  document.getElementById('ap-iata').textContent = ac.callsign[i].substring(0,7);
+  document.getElementById('ap-name').textContent = 'CALLSIGN · ' + ac.country[i].toUpperCase();
+  document.getElementById('ap-loc').textContent = 'ADS-B TRANSPONDER · LIVE';
+
+  document.getElementById('ap-traffic').textContent = Math.round(ac.alt[i]) + ' m';
+  document.getElementById('ap-conn').textContent = Math.round(ac.vel[i] * 3.6) + ' km/h';
+  document.getElementById('ap-hub').textContent = Math.round(ac.heading[i] * 180 / Math.PI) + '°';
+  document.getElementById('ap-status').textContent = ac.onGround[i] ? 'EN TIERRA' : 'EN VUELO';
+
+  document.getElementById('ap-dests').innerHTML =
+    `<span class="dest-chip">ICAO ${ac.icao24[i].toUpperCase()}</span>` +
+    `<span class="dest-chip">${ac.country[i].substring(0, 12).toUpperCase()}</span>`;
+
+  document.getElementById('ap-lat').textContent = formatLat(ac.lat[i]);
+  document.getElementById('ap-lon').textContent = formatLon(ac.lon[i]);
+}
+
+function formatLat(v) {
+  const s = v >= 0 ? '+' : '−';
+  return `${s}${Math.abs(v).toFixed(2)}°`;
+}
+function formatLon(v) {
+  const s = v >= 0 ? '+' : '−';
+  return `${s}${Math.abs(v).toFixed(2)}°`;
+}
+
+let focusedAircraftIdx = -1;
+
+// ====================== REGION FILTER ======================
+// Region bounding boxes (approximate)
+const REGION_BBOX = {
+  NA:  { latMin:  15, latMax:  75, lonMin: -170, lonMax: -50 },
+  SA:  { latMin: -56, latMax:  15, lonMin:  -82, lonMax: -34 },
+  EU:  { latMin:  35, latMax:  72, lonMin:  -10, lonMax:  40 },
+  ME:  { latMin:  12, latMax:  42, lonMin:   25, lonMax:  60 },
+  AF:  { latMin: -35, latMax:  37, lonMin:  -18, lonMax:  50 },
+  SAS: { latMin:   5, latMax:  37, lonMin:   60, lonMax:  92 },
+  EA:  { latMin:  18, latMax:  55, lonMin:  100, lonMax: 150 },
+  SEA: { latMin: -11, latMax:  23, lonMin:   92, lonMax: 142 },
+  OC:  { latMin: -47, latMax: -10, lonMin:  112, lonMax: 180 },
+};
+
+let activeRegion = 'all';
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeRegion = btn.dataset.region;
+    applyRegionFilter();
+  });
+});
+
+function applyRegionFilter() {
+  let visibleCount = 0;
+  if (activeRegion === 'all') {
+    // all aircraft full alpha
+    for (let i = 0; i < ac.count; i++) {
+      headAlpha[i] = ac.onGround[i] ? 0.5 : 1.0;
+    }
+    visibleCount = ac.count;
+  } else {
+    const bb = REGION_BBOX[activeRegion];
+    for (let i = 0; i < ac.count; i++) {
+      const inBox = (ac.lat[i] >= bb.latMin && ac.lat[i] <= bb.latMax &&
+                     ac.lon[i] >= bb.lonMin && ac.lon[i] <= bb.lonMax);
+      if (inBox) visibleCount++;
+      const baseA = ac.onGround[i] ? 0.5 : 1.0;
+      headAlpha[i] = inBox ? baseA : 0.07;
+    }
+  }
+  headGeo.attributes.aAlpha.needsUpdate = true;
+  // dim trails too (multiply existing contrail alphas by region visibility)
+  for (let i = 0; i < ac.count; i++) {
+    const visMul = headAlpha[i] / (ac.onGround[i] ? 0.5 : 1.0); // 1.0 visible, 0.07 dim
+    for (let seg = 0; seg < TRAIL_LEN - 1; seg++) {
+      const f = 1 - (seg / (TRAIL_LEN - 1));
+      const baseA = f * f * 0.85 * (ac.onGround[i] || ac.vel[i] < 30 ? 0 : 1);
+      const a = baseA * visMul;
+      const ai = i * TRAIL_VERTS + seg * 2;
+      trailAlphas[ai]   = a;
+      trailAlphas[ai+1] = a * (1 - 1/(TRAIL_LEN-1));
+    }
+  }
+  trailGeo.attributes.aAlpha.needsUpdate = true;
+
+  document.getElementById('filter-count').textContent =
+    (activeRegion === 'all' ? 'ALL' : activeRegion) + ' · ' + visibleCount;
+}
+
+// ====================== TOP COUNTRIES LIST ======================
+// Map common OpenSky country names to ISO-3 codes for compact display
+const COUNTRY_CODE = {
+  'United States': 'USA', 'United Kingdom': 'GBR', 'Germany': 'DEU',
+  'France': 'FRA', 'Spain': 'ESP', 'Italy': 'ITA', 'Netherlands': 'NLD',
+  'Ireland': 'IRL', 'Switzerland': 'CHE', 'Austria': 'AUT', 'Belgium': 'BEL',
+  'Portugal': 'PRT', 'Greece': 'GRC', 'Sweden': 'SWE', 'Norway': 'NOR',
+  'Denmark': 'DNK', 'Finland': 'FIN', 'Poland': 'POL', 'Turkey': 'TUR',
+  'Russia': 'RUS', 'United Arab Emirates': 'UAE', 'Saudi Arabia': 'SAU',
+  'Qatar': 'QAT', 'Israel': 'ISR', 'Egypt': 'EGY', 'South Africa': 'ZAF',
+  'Morocco': 'MAR', 'Kenya': 'KEN', 'Nigeria': 'NGA',
+  'India': 'IND', 'China': 'CHN', 'Japan': 'JPN', 'South Korea': 'KOR',
+  'Hong Kong': 'HKG', 'Taiwan': 'TWN', 'Thailand': 'THA',
+  'Singapore': 'SGP', 'Malaysia': 'MYS', 'Indonesia': 'IDN',
+  'Philippines': 'PHL', 'Vietnam': 'VNM', 'Australia': 'AUS', 'New Zealand': 'NZL',
+  'Canada': 'CAN', 'Mexico': 'MEX', 'Brazil': 'BRA', 'Argentina': 'ARG',
+  'Chile': 'CHL', 'Colombia': 'COL', 'Peru': 'PER',
+};
+
+function rebuildCountries() {
+  const counts = {};
+  for (let i = 0; i < ac.count; i++) {
+    if (!ac.icao24[i]) continue;
+    const c = ac.country[i];
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  const sorted = Object.entries(counts)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 8);
+  const max = sorted[0] ? sorted[0][1] : 1;
+  const html = sorted.map(([name, count], i) => {
+    const code = COUNTRY_CODE[name] || name.substring(0, 3).toUpperCase();
+    const f = count / max;
+    return `
+      <div class="corridor">
+        <span class="rank">${String(i+1).padStart(2,'0')}</span>
+        <span class="route">${code}<span class="sep">·</span>${count}</span>
+        <span class="bar"><span class="bar-fill" style="transform: scaleX(${f})"></span></span>
+      </div>`;
+  }).join('');
+  document.getElementById('corridors-list').innerHTML = html;
+}
+
+// ====================== TIMELINE — ROLLING 60 min ======================
+const tlSamples = []; // {t: ms, n: count}
+function pushTimelineSample(count) {
+  const now = Date.now();
+  tlSamples.push({ t: now, n: count });
+  // keep only last 65 minutes
+  const cutoff = now - 65 * 60_000;
+  while (tlSamples.length && tlSamples[0].t < cutoff) tlSamples.shift();
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const chart = document.getElementById('tl-chart');
+  chart.querySelectorAll('.tl-bar').forEach(b => b.remove());
+  const now = Date.now();
+  // 60 bars, one per minute, last 60 minutes
+  const bars = new Array(60).fill(0);
+  // assign each sample to its minute bucket
+  tlSamples.forEach(s => {
+    const mAgo = Math.floor((now - s.t) / 60_000);
+    if (mAgo >= 0 && mAgo < 60) {
+      bars[59 - mAgo] = Math.max(bars[59 - mAgo], s.n);
+    }
+  });
+  const max = Math.max(1, ...bars);
+  const html = bars.map((v, h) => {
+    if (v === 0) return `<div class="tl-bar" style="height:2px;opacity:0.15"></div>`;
+    const isNow = (h === 59);
+    const cls = isNow ? 'tl-bar now' : 'tl-bar';
+    return `<div class="${cls}" style="height:${(v/max) * 70 + 4}px"></div>`;
+  }).join('');
+  const axis = chart.querySelector('.tl-axis');
+  axis.insertAdjacentHTML('beforebegin', html);
+
+  const hourNow = new Date().getUTCHours();
+  const minNow = new Date().getUTCMinutes();
+  document.getElementById('tl-now').textContent =
+    String(hourNow).padStart(2,'0') + ':' + String(minNow).padStart(2,'0');
+}
+renderTimeline();
+
+// ====================== COUNTERS ======================
+function refreshCounters() {
+  let airborne = 0, ground = 0, altSum = 0, altN = 0, maxV = 0;
+  for (let i = 0; i < ac.count; i++) {
+    if (!ac.icao24[i]) continue;
+    if (ac.onGround[i]) {
+      ground++;
+    } else {
+      airborne++;
+      altSum += ac.alt[i]; altN++;
+      if (ac.vel[i] > maxV) maxV = ac.vel[i];
+    }
+  }
+  document.getElementById('ct-flights').textContent = airborne.toLocaleString();
+  document.getElementById('ct-routes').textContent = ground.toLocaleString();
+  document.getElementById('ct-airports').textContent = airports.length;
+  document.getElementById('ct-mpm').textContent = altN ? Math.round(altSum / altN) + 'm' : '—';
+  document.getElementById('ct-peak').textContent = Math.round(maxV * 3.6) + 'km';
+}
+
+// ====================== FRAME ID & UTC CLOCK ======================
+let frameCt = Math.floor(Math.random() * 1e7) + 1e7;
+setInterval(() => {
+  frameCt++;
+  document.getElementById('frame-id').textContent = String(frameCt).padStart(8,'0');
+}, 130);
+
+function updateClock() {
+  const d = new Date();
+  const s = [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()]
+    .map(n => String(n).padStart(2,'0')).join(':');
+  document.getElementById('utc-clock').textContent = s;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ====================== CENTER RADIAL MARKS (SVG) ======================
+(function buildCenterMarks() {
+  const sz = Math.min(window.innerWidth, window.innerHeight) * 1.0;
+  const cx = sz / 2, cy = sz / 2;
+  const r1 = sz * 0.46, r2 = sz * 0.48, r3 = sz * 0.495;
+  let svg = `<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">`;
+  // outer dashed ring
+  svg += `<circle cx="${cx}" cy="${cy}" r="${r3}" fill="none"
+    stroke="rgba(0,229,255,0.25)" stroke-width="1" stroke-dasharray="3,6"/>`;
+  // tick marks every 10°
+  for (let a = 0; a < 360; a += 5) {
+    const long = a % 30 === 0;
+    const big = a % 90 === 0;
+    const ang = (a - 90) * Math.PI / 180;
+    const len = big ? 16 : long ? 10 : 5;
+    const x1 = cx + Math.cos(ang) * r2;
+    const y1 = cy + Math.sin(ang) * r2;
+    const x2 = cx + Math.cos(ang) * (r2 + len);
+    const y2 = cy + Math.sin(ang) * (r2 + len);
+    const op = big ? 0.7 : long ? 0.4 : 0.2;
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+      stroke="rgba(0,229,255,${op})" stroke-width="${big ? 1.5 : 1}"/>`;
+    if (long) {
+      const tx = cx + Math.cos(ang) * (r2 + len + 10);
+      const ty = cy + Math.sin(ang) * (r2 + len + 10);
+      svg += `<text x="${tx}" y="${ty}" fill="rgba(0,229,255,0.45)"
+        font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle"
+        dominant-baseline="middle" letter-spacing="1">${String(a).padStart(3,'0')}</text>`;
+    }
+  }
+  // inner thin ring
+  svg += `<circle cx="${cx}" cy="${cy}" r="${r1}" fill="none"
+    stroke="rgba(0,229,255,0.1)" stroke-width="1"/>`;
+  // crosshair extending across
+  svg += `<line x1="${cx}" y1="0" x2="${cx}" y2="${sz}" stroke="rgba(0,229,255,0.06)" stroke-width="1"/>`;
+  svg += `<line x1="0" y1="${cy}" x2="${sz}" y2="${cy}" stroke="rgba(0,229,255,0.06)" stroke-width="1"/>`;
+  svg += `</svg>`;
+  document.getElementById('center-marks').innerHTML = svg;
+})();
+window.addEventListener('resize', () => location.reload()); // simple
+
+// ====================== AUTO PANEL CYCLE ======================
+let cycleTimer = 0;
+function autoCycle(dt) {
+  if (hoveredApt || focusedAircraftIdx >= 0) return;
+  cycleTimer += dt;
+  if (cycleTimer > 5.0) {
+    cycleTimer = 0;
+    const candidates = airports.filter(a => a.hub > maxHub * 0.4);
+    panelCycleIx = (panelCycleIx + 1 + Math.floor(Math.random() * 3)) % candidates.length;
+    setFocus(candidates[panelCycleIx % candidates.length], false);
+  }
+}
+
+// initial focus
+setFocus(APT['LHR'] || airports[0], false);
+
+// ====================== ANIMATE ======================
+const clock = new THREE.Clock();
+
+function animate() {
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // rotation
+  if (autoRotate && !dragging) targetRotY += dt * 0.06;
+  rotationY += (targetRotY - rotationY) * 0.08;
+  rotationX += (targetRotX - rotationX) * 0.08;
+  globeGroup.rotation.y = rotationY;
+  globeGroup.rotation.x = rotationX;
+
+  // smooth zoom: ease current toward target each frame
+  zoomCurrent += (zoomTarget - zoomCurrent) * 0.12;
+  // keep the slight camera tilt we had originally (looking from a bit above)
+  // use proportional Y so the framing is consistent across zoom levels
+  camera.position.set(0, zoomCurrent * 0.04, zoomCurrent);
+  camera.lookAt(0, 0, 0);
+
+  // LOD level based on distance: 0=close, 1=medium, 2=far
+  // close ≈ 3.5..5.5, medium ≈ 5.5..8.5, far ≈ 8.5..12
+  const zoomNorm = (zoomCurrent - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN); // 0..1
+  // smooth scale factor that ramps sprite sizes up when close
+  // at zoomCurrent=3.5 → factor ≈ 1.7, at 7.6 → ~1.0, at 12 → ~0.75
+  const zoomScale = 1.4 - zoomNorm * 0.85;
+  headMat.uniforms.uPixelRatio.value = renderer.getPixelRatio() * zoomScale;
+
+  // Contrail length multiplier: longer when zoomed in, shorter when zoomed out.
+  // We only force a rebuild when it has changed meaningfully (>10%), to avoid
+  // recomputing 1500 contrails every frame just because the zoom is animating.
+  const newTrailMul = 1.6 - zoomNorm * 1.0; // 1.6 close → 0.6 far
+  if (Math.abs(newTrailMul - trailZoomMul) > 0.1) {
+    trailZoomMul = newTrailMul;
+    contrailTimer = CONTRAIL_REBUILD_MS / 1000; // forces rebuild on next tickAircraft
+  }
+
+  // camera readouts
+  const lonReading = -((rotationY * 180 / Math.PI) % 360);
+  const lat = rotationX * 180 / Math.PI;
+  document.getElementById('cam-lat').textContent = formatLat(lat);
+  document.getElementById('cam-lon').textContent = formatLon(((lonReading + 540) % 360) - 180);
+  // zoom indicator: 7.6 (default) = ×1.00, 3.5 (closest) = ×2.17, 12 (farthest) = ×0.63
+  document.getElementById('cam-zoom').textContent = '×' + (7.6 / zoomCurrent).toFixed(2);
+
+  // pulse airport rings
+  airports.forEach(a => {
+    a._pulseT += dt * 1.6;
+    const s = 1 + Math.sin(a._pulseT) * 0.18;
+    a._ring.scale.set(s, s, s);
+    a._ring.material.opacity = (focusedApt === a ? 0.95 : 0.55) + 0.35 * Math.sin(a._pulseT);
+    if (a._pulse) {
+      const ps = 1 + ((a._pulseT * 0.8) % 1) * 2.5;
+      a._pulse.scale.set(ps, ps, ps);
+      a._pulse.material.opacity = 0.6 * (1 - ((a._pulseT * 0.8) % 1));
+    }
+    if (focusedApt === a) {
+      a._dot.material.color.setRGB(1, 0.7, 0.3);
+      a._ring.material.color.setRGB(1, 0.7, 0.3);
+    } else {
+      a._dot.material.color.setRGB(0.66, 1, 1);
+      a._ring.material.color.setRGB(0, 0.9, 1);
+    }
+  });
+
+  // animate aircraft (dead-reckon positions, update trails)
+  tickAircraft();
+
+  // animate sync pulse if active
+  {
+    const tNow = performance.now() / 1000;
+    pulseMesh.material.uniforms.uTime.value = tNow;
+    const age = tNow - pulseStartTime;
+    if (age >= 0 && age < 1.8) {
+      const k = age / 1.8;
+      const ease = 1 - Math.pow(1 - k, 2.5);
+      const s = 1.0 + ease * 0.55;
+      pulseMesh.scale.set(s, s, s);
+      pulseMesh.visible = true;
+      // billboard: make ring face the camera
+      _pulseScratch.copy(camera.position);
+      globeGroup.worldToLocal(_pulseScratch);
+      pulseMesh.lookAt(_pulseScratch);
+    } else if (pulseMesh.visible) {
+      pulseMesh.visible = false;
+    }
+  }
+
+  // poll feed if it's time
+  tickFeed();
+
+  autoCycle(dt);
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+// ====================== KICKOFF (after all constants are initialized) ======================
+// Load synthetic snapshot immediately so the visual is never empty,
+// then attempt to upgrade to real ADS-B data in the background.
+loadFallback();
+fetchSnapshot();
+
+animate();
+
+</script>
+</body>
+</html>

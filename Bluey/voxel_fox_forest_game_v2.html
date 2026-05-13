@@ -1,0 +1,311 @@
+<style>
+.sr-only{position:absolute;left:-9999px}
+.fox-game-wrap{width:100%;border-radius:var(--border-radius-lg);overflow:hidden;border:0.5px solid var(--color-border-tertiary);background:#b8e1f0;position:relative}
+.fox-game-wrap canvas{display:block;width:100%;height:520px;outline:none;cursor:grab}
+.fox-game-wrap canvas:active{cursor:grabbing}
+.fox-hint{position:absolute;top:12px;left:12px;background:rgba(255,255,255,0.85);padding:6px 10px;border-radius:var(--border-radius-md);font-size:12px;color:#2a4a30;pointer-events:none;transition:opacity 0.4s}
+.fox-stat{position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.85);padding:6px 12px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;color:#7a3010;pointer-events:none}
+.fox-controls{display:flex;gap:14px;justify-content:center;margin-top:14px;font-size:13px;color:var(--color-text-secondary);flex-wrap:wrap;align-items:center}
+.fox-key{display:inline-block;padding:2px 8px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-family:var(--font-mono);font-size:12px;margin-right:6px;background:var(--color-background-secondary);color:var(--color-text-primary)}
+.fox-ctrl{display:inline-flex;align-items:center}
+</style>
+
+<h2 class="sr-only">Juego isométrico voxel: un zorro explora un bosque, puede moverse, saltar y recoger setas.</h2>
+
+<div class="fox-game-wrap" id="fox-wrap">
+  <canvas id="fox-game" tabindex="0"></canvas>
+  <div class="fox-hint" id="fox-hint">Haz clic para jugar · WASD + Espacio</div>
+  <div class="fox-stat" id="fox-stat">Setas: 0</div>
+</div>
+
+<div class="fox-controls">
+  <span class="fox-ctrl"><span class="fox-key">WASD</span>mover</span>
+  <span class="fox-ctrl"><span class="fox-key">Espacio</span>saltar</span>
+  <span class="fox-ctrl"><span class="fox-key">R</span>reiniciar</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  if(typeof THREE==='undefined'){document.getElementById('fox-hint').textContent='Error cargando Three.js';return}
+  const canvas=document.getElementById('fox-game');
+  const hintEl=document.getElementById('fox-hint');
+  const statEl=document.getElementById('fox-stat');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0xb8e1f0);
+  scene.fog=new THREE.Fog(0xb8e1f0,28,58);
+  const camera=new THREE.OrthographicCamera(-12,12,12,-12,0.1,200);
+  const camOffset=new THREE.Vector3(22,26,22);
+  function resize(){
+    const w=canvas.clientWidth||680;const h=canvas.clientHeight||520;
+    renderer.setSize(w,h,false);
+    const aspect=w/h;const d=11;
+    camera.left=-d*aspect;camera.right=d*aspect;camera.top=d;camera.bottom=-d;
+    camera.updateProjectionMatrix();
+  }
+  resize();window.addEventListener('resize',resize);
+  scene.add(new THREE.HemisphereLight(0xfff4dc,0x4a6741,0.55));
+  const sun=new THREE.DirectionalLight(0xfff4d6,0.85);
+  sun.position.set(30,50,20);scene.add(sun);
+  scene.add(new THREE.AmbientLight(0xffffff,0.18));
+  const M={
+    foxO:new THREE.MeshLambertMaterial({color:0xe8722c}),
+    foxD:new THREE.MeshLambertMaterial({color:0xa84a16}),
+    foxW:new THREE.MeshLambertMaterial({color:0xf5e8d0}),
+    foxB:new THREE.MeshLambertMaterial({color:0x2a2a2a}),
+    trunk:new THREE.MeshLambertMaterial({color:0x6b4423}),
+    leaf:new THREE.MeshLambertMaterial({color:0x3d7a26}),
+    leafD:new THREE.MeshLambertMaterial({color:0x2d5a1c}),
+    leafL:new THREE.MeshLambertMaterial({color:0x569030}),
+    stone:new THREE.MeshLambertMaterial({color:0x8a8a8a}),
+    stoneD:new THREE.MeshLambertMaterial({color:0x666666}),
+    mCap:new THREE.MeshLambertMaterial({color:0xc94545}),
+    mStem:new THREE.MeshLambertMaterial({color:0xeed6ae}),
+    flower:new THREE.MeshLambertMaterial({color:0xf4d046}),
+    flowerP:new THREE.MeshLambertMaterial({color:0xe684c4}),
+    flowerB:new THREE.MeshLambertMaterial({color:0x8fbaff})
+  };
+  function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
+  const fox=new THREE.Group();
+  const foxBody=new THREE.Group();
+  foxBody.add(box(1.3,0.7,0.7,M.foxO));
+  const belly=box(1.0,0.2,0.55,M.foxW);belly.position.y=-0.3;foxBody.add(belly);
+  const head=new THREE.Group();
+  head.add(box(0.7,0.7,0.7,M.foxO));
+  const snout=box(0.35,0.3,0.45,M.foxW);snout.position.set(0.45,-0.1,0);head.add(snout);
+  const nose=box(0.16,0.16,0.22,M.foxB);nose.position.set(0.66,0.02,0);head.add(nose);
+  const eL=box(0.1,0.16,0.16,M.foxB);eL.position.set(0.26,0.16,0.22);head.add(eL);
+  const eR=eL.clone();eR.position.z=-0.22;head.add(eR);
+  const cL=box(0.18,0.2,0.08,M.foxW);cL.position.set(0.22,-0.12,0.38);head.add(cL);
+  const cR=cL.clone();cR.position.z=-0.38;head.add(cR);
+  const earL=box(0.22,0.4,0.22,M.foxO);earL.position.set(-0.1,0.5,0.2);head.add(earL);
+  const earInL=box(0.13,0.24,0.06,M.foxD);earInL.position.set(-0.04,0.46,0.28);head.add(earInL);
+  const earR=earL.clone();earR.position.z=-0.2;head.add(earR);
+  const earInR=earInL.clone();earInR.position.z=-0.28;head.add(earInR);
+  head.position.set(0.85,0.4,0);foxBody.add(head);
+  function leg(x,z){
+    const g=new THREE.Group();
+    const u=box(0.22,0.45,0.22,M.foxO);u.position.y=-0.225;g.add(u);
+    const s=box(0.24,0.16,0.24,M.foxW);s.position.y=-0.53;g.add(s);
+    g.position.set(x,-0.35,z);return g;
+  }
+  const lFL=leg(0.42,0.2),lFR=leg(0.42,-0.2),lBL=leg(-0.42,0.2),lBR=leg(-0.42,-0.2);
+  foxBody.add(lFL,lFR,lBL,lBR);
+  const tail=new THREE.Group();
+  tail.add(box(0.36,0.36,0.36,M.foxO));
+  const t2=box(0.32,0.32,0.32,M.foxO);t2.position.set(-0.28,0.18,0);tail.add(t2);
+  const t3=box(0.3,0.3,0.3,M.foxO);t3.position.set(-0.5,0.4,0);tail.add(t3);
+  const tTip=box(0.34,0.34,0.34,M.foxW);tTip.position.set(-0.72,0.62,0);tail.add(tTip);
+  tail.position.set(-0.72,0.08,0);foxBody.add(tail);
+  foxBody.position.y=0.7;
+  fox.add(foxBody);
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.55,18),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.28}));
+  shadow.rotation.x=-Math.PI/2;shadow.position.y=0.02;fox.add(shadow);
+  scene.add(fox);
+  const TILE=1.5,SIZE=18;const halfW=(SIZE*TILE)/2;
+  const groundGeo=new THREE.BoxGeometry(TILE,0.3,TILE);
+  const groundMat=new THREE.MeshLambertMaterial();
+  const ground=new THREE.InstancedMesh(groundGeo,groundMat,SIZE*SIZE);
+  const dummy=new THREE.Object3D();const col=new THREE.Color();
+  const shades=[0x6fa84a,0x77b550,0x639940,0x7cb547,0x569040,0x82b958];
+  let gi=0;
+  for(let i=0;i<SIZE;i++)for(let j=0;j<SIZE;j++){
+    const x=(i-SIZE/2+0.5)*TILE,z=(j-SIZE/2+0.5)*TILE;
+    dummy.position.set(x,-0.15,z);dummy.updateMatrix();
+    ground.setMatrixAt(gi,dummy.matrix);
+    col.setHex(shades[Math.floor(Math.random()*shades.length)]);
+    ground.setColorAt(gi,col);gi++;
+  }
+  ground.instanceMatrix.needsUpdate=true;
+  if(ground.instanceColor)ground.instanceColor.needsUpdate=true;
+  scene.add(ground);
+  const obstacles=[];const mushrooms=[];
+  function tree(x,z){
+    const t=new THREE.Group();
+    const h=1.6+Math.random()*0.8;
+    const tr=box(0.5,h,0.5,M.trunk);tr.position.y=h/2;t.add(tr);
+    const lm=[M.leafD,M.leaf,M.leafL];
+    const offs=[[0,0,0,1.4],[0.8,-0.1,0,0.85],[-0.8,-0.1,0,0.85],[0,-0.1,0.85,0.85],[0,-0.1,-0.85,0.85],[0,0.9,0,1.0],[0.45,0.55,0.45,0.7],[-0.45,0.55,-0.45,0.7],[0.45,0.55,-0.45,0.7],[-0.45,0.55,0.45,0.7]];
+    offs.forEach(o=>{
+      const lf=box(o[3],o[3],o[3],lm[Math.floor(Math.random()*3)]);
+      lf.position.set(o[0],h+0.5+o[1],o[2]);t.add(lf);
+    });
+    t.position.set(x,0,z);scene.add(t);
+    obstacles.push({x,z,r:0.9});
+  }
+  function rock(x,z){
+    const r=new THREE.Group();
+    const s1=0.7+Math.random()*0.4;
+    const a=box(s1,s1*0.65,s1,M.stone);a.position.y=s1*0.325;r.add(a);
+    const s2=0.45+Math.random()*0.3;
+    const b=box(s2,s2*0.6,s2,M.stoneD);b.position.set(s1*0.35,s2*0.3,-s1*0.2);r.add(b);
+    r.position.set(x,0,z);scene.add(r);
+    obstacles.push({x,z,r:0.7});
+  }
+  function bush(x,z){
+    const b=new THREE.Group();
+    const cols=[M.leaf,M.leafL];
+    for(let i=0;i<4;i++){
+      const s=0.35+Math.random()*0.2;
+      const k=box(s,s,s,cols[i%2]);
+      k.position.set((Math.random()-0.5)*0.5,s*0.5+Math.random()*0.15,(Math.random()-0.5)*0.5);
+      b.add(k);
+    }
+    b.position.set(x,0,z);scene.add(b);
+    obstacles.push({x,z,r:0.55});
+  }
+  function mushroom(x,z){
+    const m=new THREE.Group();
+    const stem=box(0.18,0.3,0.18,M.mStem);stem.position.y=0.15;m.add(stem);
+    const cap=box(0.45,0.22,0.45,M.mCap);cap.position.y=0.4;m.add(cap);
+    const sp1=box(0.1,0.06,0.1,M.foxW);sp1.position.set(0.12,0.52,0.05);m.add(sp1);
+    const sp2=box(0.08,0.06,0.08,M.foxW);sp2.position.set(-0.1,0.52,0.12);m.add(sp2);
+    m.position.set(x,0,z);scene.add(m);
+    mushrooms.push({x,z,mesh:m,collected:false,phase:Math.random()*Math.PI*2});
+  }
+  function flower(x,z){
+    const f=new THREE.Group();
+    const stem=box(0.05,0.25,0.05,M.leaf);stem.position.y=0.125;f.add(stem);
+    const fmats=[M.flower,M.flowerP,M.flowerB];
+    const head=box(0.15,0.1,0.15,fmats[Math.floor(Math.random()*3)]);
+    head.position.y=0.3;f.add(head);
+    f.position.set(x,0,z);scene.add(f);
+  }
+  function farFromCenter(x,z,min){return Math.abs(x)>min||Math.abs(z)>min}
+  function farFromObstacles(x,z,min){return obstacles.every(o=>(o.x-x)**2+(o.z-z)**2>min*min)}
+  for(let i=0;i<24;i++){
+    let x,z,ok=false,t=0;
+    while(!ok&&t<30){
+      x=(Math.random()-0.5)*halfW*1.85;z=(Math.random()-0.5)*halfW*1.85;
+      ok=farFromCenter(x,z,2.5)&&farFromObstacles(x,z,1.8);t++;
+    }
+    if(ok)tree(x,z);
+  }
+  for(let i=0;i<9;i++){
+    const x=(Math.random()-0.5)*halfW*1.8,z=(Math.random()-0.5)*halfW*1.8;
+    if(farFromCenter(x,z,2)&&farFromObstacles(x,z,1.4))rock(x,z);
+  }
+  for(let i=0;i<12;i++){
+    const x=(Math.random()-0.5)*halfW*1.8,z=(Math.random()-0.5)*halfW*1.8;
+    if(farFromCenter(x,z,2)&&farFromObstacles(x,z,1.2))bush(x,z);
+  }
+  for(let i=0;i<14;i++){
+    const x=(Math.random()-0.5)*halfW*1.7,z=(Math.random()-0.5)*halfW*1.7;
+    if(farFromCenter(x,z,1.5)&&farFromObstacles(x,z,0.9))mushroom(x,z);
+  }
+  for(let i=0;i<30;i++){
+    flower((Math.random()-0.5)*halfW*1.95,(Math.random()-0.5)*halfW*1.95);
+  }
+  const keys={};
+  const camDir=new THREE.Vector3(-camOffset.x,0,-camOffset.z).normalize();
+  const camRight=new THREE.Vector3().crossVectors(camDir,new THREE.Vector3(0,1,0)).normalize();
+  let foxYaw=0,foxYawTarget=0,foxY=0,vy=0,grounded=true,walkPhase=0,speed=0;
+  const totalM=mushrooms.length;let collected=0;
+  statEl.textContent=`Setas: 0 / ${totalM}`;
+  let firstInput=false;
+  function consumeHint(){if(!firstInput){firstInput=true;hintEl.style.opacity='0';setTimeout(()=>hintEl.style.display='none',500)}}
+  const keyMap={'w':'w','a':'a','s':'s','d':'d','arrowup':'w','arrowleft':'a','arrowdown':'s','arrowright':'d',' ':'space','r':'r'};
+  function kd(e){
+    const k=keyMap[e.key.toLowerCase()];if(!k)return;
+    keys[k]=true;consumeHint();
+    if(k==='space'||['w','a','s','d'].includes(k))e.preventDefault();
+    if(k==='r')reset();
+  }
+  function ku(e){const k=keyMap[e.key.toLowerCase()];if(k)keys[k]=false}
+  window.addEventListener('keydown',kd);
+  window.addEventListener('keyup',ku);
+  canvas.addEventListener('click',()=>{canvas.focus();consumeHint()});
+  setTimeout(()=>canvas.focus(),200);
+  function reset(){
+    fox.position.set(0,0,0);foxY=0;vy=0;foxYaw=0;foxYawTarget=0;grounded=true;
+    mushrooms.forEach(m=>{m.collected=false;m.mesh.visible=true});
+    collected=0;statEl.textContent=`Setas: 0 / ${totalM}`;statEl.style.color='#7a3010';
+  }
+  const targetCam=new THREE.Vector3();
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(0.05,(now-last)/1000);last=now;
+    const mv=new THREE.Vector3();
+    if(keys.w)mv.add(camDir);
+    if(keys.s)mv.sub(camDir);
+    if(keys.d)mv.add(camRight);
+    if(keys.a)mv.sub(camRight);
+    mv.y=0;
+    const moving=mv.lengthSq()>0.01;
+    if(moving){mv.normalize();foxYawTarget=Math.atan2(-mv.z,mv.x);speed=Math.min(speed+dt*9,6.0)}
+    else speed=Math.max(speed-dt*11,0);
+    let dy=foxYawTarget-foxYaw;
+    while(dy>Math.PI)dy-=Math.PI*2;
+    while(dy<-Math.PI)dy+=Math.PI*2;
+    foxYaw+=dy*Math.min(1,dt*13);
+    fox.rotation.y=foxYaw;
+    if(speed>0.05){
+      const nx=fox.position.x+mv.x*speed*dt;
+      const nz=fox.position.z+mv.z*speed*dt;
+      const lim=halfW-1;
+      const cx=Math.max(-lim,Math.min(lim,nx));
+      const cz=Math.max(-lim,Math.min(lim,nz));
+      if(foxY>0.7){fox.position.x=cx;fox.position.z=cz}
+      else{
+        let bx=false,bz=false;
+        for(const o of obstacles){
+          if((cx-o.x)**2+(fox.position.z-o.z)**2<o.r*o.r)bx=true;
+          if((fox.position.x-o.x)**2+(cz-o.z)**2<o.r*o.r)bz=true;
+        }
+        if(!bx)fox.position.x=cx;
+        if(!bz)fox.position.z=cz;
+      }
+    }
+    if(keys.space&&grounded){vy=8.0;grounded=false}
+    if(!grounded){
+      vy-=23*dt;foxY+=vy*dt;
+      if(foxY<=0){foxY=0;vy=0;grounded=true}
+    }
+    const bob=grounded?Math.abs(Math.sin(walkPhase*2))*0.05*Math.min(1,speed/4):0;
+    foxBody.position.y=0.7+foxY+bob;
+    if(grounded){
+      walkPhase+=dt*speed*1.8;
+      const ls=Math.sin(walkPhase)*0.55*Math.min(1,speed/4);
+      lFL.rotation.z=ls;lBR.rotation.z=ls;
+      lFR.rotation.z=-ls;lBL.rotation.z=-ls;
+      tail.rotation.y=Math.sin(walkPhase*1.5)*0.35;
+      head.rotation.y=Math.sin(walkPhase)*0.06;
+      foxBody.scale.set(1,1,1);
+    }else{
+      lFL.rotation.z=0.45;lFR.rotation.z=0.45;
+      lBL.rotation.z=-0.45;lBR.rotation.z=-0.45;
+      tail.rotation.y=0;head.rotation.y=0;
+      const sy=1+Math.max(-0.18,Math.min(0.18,vy*0.022));
+      foxBody.scale.y=sy;foxBody.scale.x=foxBody.scale.z=1/Math.sqrt(sy);
+    }
+    const ss=Math.max(0.35,1-foxY*0.12);
+    shadow.scale.set(ss,ss,ss);
+    shadow.material.opacity=0.28*ss;
+    for(const m of mushrooms){
+      if(!m.collected){
+        const dx=fox.position.x-m.x,dz=fox.position.z-m.z;
+        if(dx*dx+dz*dz<0.7*0.7&&foxY<0.9){
+          m.collected=true;m.mesh.visible=false;collected++;
+          statEl.textContent=`Setas: ${collected} / ${totalM}`;
+          if(collected===totalM){
+            statEl.textContent=`¡Bosque limpio! ${collected}/${totalM}`;
+            statEl.style.color='#0f6e56';
+          }
+        }else{
+          m.phase+=dt*2;
+          m.mesh.position.y=Math.sin(m.phase)*0.08;
+          m.mesh.rotation.y+=dt*0.6;
+        }
+      }
+    }
+    targetCam.copy(fox.position).add(camOffset);
+    camera.position.lerp(targetCam,Math.min(1,dt*4.5));
+    camera.lookAt(fox.position.x,0.5,fox.position.z);
+    renderer.render(scene,camera);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>

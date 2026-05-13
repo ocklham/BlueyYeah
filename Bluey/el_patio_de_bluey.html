@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Patio de Bluey · Aventura voxel en Brisbane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bluey-light:#7FC5DD;
+  --bluey-mid:#5BA8C5;
+  --bluey-dark:#3B7894;
+  --bluey-cream:#F4D89B;
+  --sky-1:#BFE4F0;
+  --sky-2:#D9EDF2;
+  --sun:#FFCF5C;
+  --sun-glow:#FFE6A0;
+  --grass:#8FBE4A;
+  --grass-dark:#5A8A2E;
+  --roof:#C44E3D;
+  --roof-dark:#8E2F22;
+  --bingo:#E89B73;
+  --jacaranda:#9D7BC4;
+  --ink:#2A3B4D;
+  --ink-soft:#54657A;
+  --paper:#FBF4E1;
+  --warm:#FFEBC9;
+  --card:#FFFFFF;
+  --shadow:0 8px 32px rgba(42,59,77,0.12);
+  --shadow-lg:0 20px 50px rgba(42,59,77,0.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'Nunito',sans-serif;color:var(--ink);background:var(--paper);overflow-x:hidden;line-height:1.5}
+body{min-height:100vh;position:relative}
+
+.sky-bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,var(--sky-1) 0%,var(--sky-2) 45%,var(--paper) 78%,var(--paper) 100%);overflow:hidden}
+.sun{position:absolute;top:48px;right:8%;width:110px;height:110px;background:radial-gradient(circle at center,var(--sun) 0%,var(--sun) 60%,var(--sun-glow) 75%,transparent 100%);border-radius:50%;animation:sunPulse 5s ease-in-out infinite}
+@keyframes sunPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.06);filter:brightness(1.08)}}
+.cloud{position:absolute;opacity:0.94;filter:drop-shadow(0 4px 8px rgba(94,134,160,0.08))}
+.cloud-1{top:8%;left:-180px;width:200px;animation:drift1 72s linear infinite}
+.cloud-2{top:18%;left:-150px;width:160px;animation:drift2 95s linear infinite;animation-delay:-30s}
+.cloud-3{top:5%;left:-220px;width:240px;animation:drift1 88s linear infinite;animation-delay:-50s}
+.cloud-4{top:28%;left:-130px;width:140px;animation:drift2 110s linear infinite;animation-delay:-15s}
+@keyframes drift1{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 250px))}}
+@keyframes drift2{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 250px))}}
+
+.paw-deco{position:absolute;opacity:0.07;pointer-events:none}
+.paw-deco svg{width:100%;height:100%;fill:var(--bluey-dark)}
+.paw-1{top:62%;left:4%;width:80px;transform:rotate(-22deg)}
+.paw-2{top:74%;right:6%;width:64px;transform:rotate(18deg)}
+.paw-3{top:88%;left:14%;width:50px;transform:rotate(-8deg)}
+
+.container{max-width:1180px;margin:0 auto;padding:0 32px}
+
+.hero{padding:64px 0 32px;text-align:center;position:relative}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-family:'Fredoka',sans-serif;font-weight:500;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:var(--bluey-dark);background:rgba(255,255,255,0.6);padding:8px 16px;border-radius:999px;border:1.5px solid rgba(59,120,148,0.15);margin-bottom:24px;backdrop-filter:blur(4px)}
+.kicker .dot{width:6px;height:6px;background:var(--roof);border-radius:50%;animation:dotPulse 1.5s ease-in-out infinite}
+@keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.6}}
+
+h1{font-family:'Fredoka',sans-serif;font-weight:600;font-size:clamp(48px,7.5vw,88px);line-height:1.0;letter-spacing:-0.02em;margin-bottom:20px;color:var(--ink)}
+h1 .bluey-mark{display:inline-block;font-weight:700}
+h1 .bluey-mark span{display:inline-block;animation:letterBounce 0.6s cubic-bezier(0.34,1.56,0.64,1) backwards}
+h1 .bluey-mark span:nth-child(1){color:#6FC0DA;animation-delay:0.15s;transform-origin:bottom}
+h1 .bluey-mark span:nth-child(2){color:#5BB0CE;animation-delay:0.22s}
+h1 .bluey-mark span:nth-child(3){color:#4DA0C2;animation-delay:0.29s}
+h1 .bluey-mark span:nth-child(4){color:#5BB0CE;animation-delay:0.36s}
+h1 .bluey-mark span:nth-child(5){color:#6FC0DA;animation-delay:0.43s}
+@keyframes letterBounce{0%{opacity:0;transform:translateY(40px) rotate(-8deg)}100%{opacity:1;transform:translateY(0) rotate(0)}}
+
+.tagline{font-family:'Nunito',sans-serif;font-weight:600;font-size:clamp(16px,1.8vw,20px);color:var(--ink-soft);max-width:580px;margin:0 auto 8px;line-height:1.55}
+.tagline em{font-style:normal;color:var(--bluey-dark);font-weight:700}
+
+.game-section{padding:32px 0 56px}
+.game-frame{position:relative;background:var(--card);border-radius:28px;padding:14px;box-shadow:var(--shadow-lg);border:1px solid rgba(255,255,255,0.8)}
+.game-frame::before{content:'';position:absolute;inset:-4px;border-radius:32px;background:linear-gradient(135deg,var(--bluey-light),var(--bluey-cream),var(--roof),var(--bluey-mid));z-index:-1;opacity:0.5;filter:blur(8px)}
+.canvas-wrap{position:relative;border-radius:18px;overflow:hidden;background:#BFE4F0;aspect-ratio:16/10}
+#game{display:block;width:100%;height:100%;outline:none;cursor:grab}
+#game:active{cursor:grabbing}
+
+.hud-tag{position:absolute;font-family:'Fredoka',sans-serif;font-weight:500;font-size:14px;background:rgba(255,255,255,0.92);padding:10px 16px;border-radius:14px;color:var(--ink);box-shadow:0 4px 12px rgba(42,59,77,0.1);pointer-events:none;transition:opacity 0.4s,transform 0.4s;backdrop-filter:blur(6px)}
+.hud-hint{top:18px;left:18px;color:var(--bluey-dark);display:flex;align-items:center;gap:8px}
+.hud-hint::before{content:'';width:8px;height:8px;background:var(--roof);border-radius:50%;animation:dotPulse 1.5s infinite}
+.hud-stat{top:18px;right:18px;color:#7a3010;display:flex;align-items:center;gap:8px}
+.hud-stat svg{width:18px;height:18px}
+.hud-tip{bottom:18px;left:18px;color:var(--ink-soft);font-size:12px;letter-spacing:0.04em}
+.hud-tip kbd{font-family:'Nunito',sans-serif;font-weight:700;background:var(--paper);padding:2px 7px;border-radius:6px;margin:0 2px;font-size:11px;color:var(--ink)}
+.hud-music{position:absolute;bottom:18px;right:18px;background:rgba(255,255,255,0.92);border:none;border-radius:14px;padding:10px 12px;cursor:pointer;color:var(--bluey-dark);box-shadow:0 4px 12px rgba(42,59,77,0.1);transition:transform 0.15s,background 0.2s;display:flex;align-items:center;gap:6px;font-family:'Fredoka',sans-serif;font-weight:500;font-size:13px;backdrop-filter:blur(6px)}
+.hud-music:hover{transform:translateY(-2px);background:rgba(255,255,255,1)}
+.hud-music:active{transform:translateY(0) scale(0.96)}
+.hud-music svg{width:18px;height:18px}
+.hud-music.muted{color:var(--ink-soft);opacity:0.7}
+.pickup-burst{position:absolute;pointer-events:none;font-family:'Fredoka',sans-serif;font-weight:600;font-size:24px;color:#D8A045;text-shadow:0 2px 4px rgba(0,0,0,0.15);animation:pickupFloat 0.9s ease-out forwards}
+@keyframes pickupFloat{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}15%{opacity:1;transform:translate(-50%,-80%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-180%) scale(0.9)}}
+.canvas-wrap.flash::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,transparent 40%,rgba(255,210,100,0.25) 100%);pointer-events:none;animation:edgeFlash 0.5s ease-out}
+@keyframes edgeFlash{from{opacity:1}to{opacity:0}}
+.hud-stat.pulse{animation:statPulse 0.4s ease-out}
+@keyframes statPulse{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+.win-flash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.8);background:linear-gradient(135deg,var(--bluey-cream),#FFEBC9);padding:24px 36px;border-radius:20px;font-family:'Fredoka',sans-serif;font-size:32px;font-weight:600;color:var(--bluey-dark);box-shadow:0 16px 40px rgba(42,59,77,0.25);opacity:0;pointer-events:none;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1)}
+.win-flash.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+.info{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:0 0 64px}
+.info-card{background:var(--card);border-radius:20px;padding:28px 26px;box-shadow:var(--shadow);border:1.5px solid rgba(255,255,255,0.9);transition:transform 0.3s,box-shadow 0.3s;position:relative;overflow:hidden}
+.info-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:20px 20px 0 0}
+.info-card:nth-child(1)::before{background:var(--bluey-mid)}
+.info-card:nth-child(2)::before{background:var(--roof)}
+.info-card:nth-child(3)::before{background:var(--bluey-cream)}
+.info-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.info-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.info-card:nth-child(1) .info-icon{background:rgba(91,168,197,0.15);color:var(--bluey-dark)}
+.info-card:nth-child(2) .info-icon{background:rgba(196,78,61,0.12);color:var(--roof-dark)}
+.info-card:nth-child(3) .info-icon{background:rgba(244,216,155,0.4);color:#8B6920}
+.info-icon svg{width:26px;height:26px}
+.info-card h3{font-family:'Fredoka',sans-serif;font-weight:600;font-size:20px;margin-bottom:8px;color:var(--ink)}
+.info-card p{font-size:14.5px;color:var(--ink-soft);line-height:1.6}
+.info-card .kbd-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.info-card kbd{font-family:'Nunito',sans-serif;font-weight:700;font-size:11px;background:var(--paper);padding:4px 9px;border-radius:6px;color:var(--ink);border:1px solid rgba(42,59,77,0.08)}
+
+footer{padding:32px 0 48px;text-align:center;font-size:13px;color:var(--ink-soft);font-family:'Nunito',sans-serif}
+footer strong{color:var(--bluey-dark);font-weight:700}
+footer .paw{display:inline-block;color:var(--bluey-mid);margin:0 6px;vertical-align:middle}
+footer .paw svg{width:14px;height:14px;fill:currentColor}
+
+@media (max-width:880px){
+  .info{grid-template-columns:1fr;gap:16px}
+  .container{padding:0 20px}
+  .hero{padding:40px 0 20px}
+  .canvas-wrap{aspect-ratio:4/3}
+  .sun{width:80px;height:80px;top:30px;right:5%}
+  .hud-tip{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="sky-bg">
+  <div class="sun"></div>
+  <svg class="cloud cloud-1" viewBox="0 0 200 80"><ellipse cx="50" cy="50" rx="40" ry="26" fill="white"/><ellipse cx="100" cy="46" rx="50" ry="32" fill="white"/><ellipse cx="150" cy="52" rx="38" ry="24" fill="white"/></svg>
+  <svg class="cloud cloud-2" viewBox="0 0 200 80"><ellipse cx="60" cy="48" rx="42" ry="28" fill="white"/><ellipse cx="120" cy="50" rx="46" ry="26" fill="white"/></svg>
+  <svg class="cloud cloud-3" viewBox="0 0 200 80"><ellipse cx="50" cy="50" rx="38" ry="24" fill="white"/><ellipse cx="100" cy="45" rx="52" ry="30" fill="white"/><ellipse cx="155" cy="52" rx="40" ry="26" fill="white"/></svg>
+  <svg class="cloud cloud-4" viewBox="0 0 200 80"><ellipse cx="60" cy="46" rx="36" ry="22" fill="white"/><ellipse cx="115" cy="50" rx="42" ry="26" fill="white"/></svg>
+</div>
+
+<div class="paw-deco paw-1"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+<div class="paw-deco paw-2"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+<div class="paw-deco paw-3"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+
+<div class="container">
+
+<header class="hero">
+  <div class="kicker"><span class="dot"></span>Aventura voxel · Brisbane, Australia</div>
+  <h1>El patio de <span class="bluey-mark"><span>B</span><span>l</span><span>u</span><span>e</span><span>y</span></span></h1>
+  <p class="tagline">Una tarde de sol en casa de la familia <em>Heeler</em>. Corre por el patio, salta sobre la valla y rebusca los huesos escondidos entre los eucaliptos — y saluda a <em>Marqui</em>, que anda por ahí desbrozando.</p>
+</header>
+
+<section class="game-section">
+  <div class="game-frame">
+    <div class="canvas-wrap">
+      <canvas id="game" tabindex="0"></canvas>
+      <div class="hud-tag hud-hint" id="hud-hint">Haz clic para jugar</div>
+      <div class="hud-tag hud-stat" id="hud-stat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M7 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M9 9c1 1 2 2 3 2s2-1 3-2"/><path d="M9 15c1-1 2-2 3-2s2 1 3 2"/><path d="M12 11v2"/></svg>
+        <span id="bone-count">0 / 0</span>
+      </div>
+      <div class="hud-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moverse · <kbd>Espacio</kbd> saltar · <kbd>R</kbd> reiniciar</div>
+      <button class="hud-music" id="music-btn" aria-label="Activar o silenciar música">
+        <svg id="music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <span id="music-label">Música</span>
+      </button>
+      <div class="win-flash" id="win-flash">¡Bien hecho, Bluey!</div>
+    </div>
+  </div>
+</section>
+
+<section class="info">
+  <article class="info-card">
+    <div class="info-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01"/><path d="M10 12h.01"/><path d="M14 12h.01"/><path d="M18 12h.01"/><path d="M6 9v6"/><path d="M10 9v6"/><path d="M14 9v6"/><path d="M18 9v6"/></svg>
+    </div>
+    <h3>Cómo jugar</h3>
+    <p>Mueve a Bluey por el patio usando el teclado. Da un salto para esquivar troncos y rocas — la valla también se puede saltar si pillas carrerilla.</p>
+    <div class="kbd-row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>Espacio</kbd><kbd>R</kbd></div>
+  </article>
+  <article class="info-card">
+    <div class="info-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12 12 4l9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+    </div>
+    <h3>La Queenslander</h3>
+    <p>La casa azul de la familia Heeler, alzada sobre pilotes al estilo de las casas tradicionales de Brisbane. Da una vuelta por detrás — siempre hay sorpresas.</p>
+  </article>
+  <article class="info-card">
+    <div class="info-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/><circle cx="6" cy="9" r="1.5"/><circle cx="6" cy="15" r="1.5"/><circle cx="18" cy="9" r="1.5"/><circle cx="18" cy="15" r="1.5"/></svg>
+    </div>
+    <h3>El reto</h3>
+    <p>Hay huesos escondidos entre los árboles, en el sandpit, detrás del tendedero. Júntalos todos antes de que <strong style="color:var(--bluey-dark)">Marqui</strong> termine de podar el patio con su desbrozadora.</p>
+  </article>
+</section>
+
+</div>
+
+<footer>
+  <span class="paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></span>
+  Hecho con <strong>Three.js</strong> y mucho cariño · Inspirado en Bluey, no afiliado con Ludo Studio
+  <span class="paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  if(typeof THREE==='undefined'){
+    document.getElementById('hud-hint').textContent='Error cargando Three.js';
+    return;
+  }
+  const canvas=document.getElementById('game');
+  const hintEl=document.getElementById('hud-hint');
+  const boneCountEl=document.getElementById('bone-count');
+  const winFlash=document.getElementById('win-flash');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0xBFE4F0);
+  scene.fog=new THREE.Fog(0xBFE4F0,35,75);
+  const camera=new THREE.OrthographicCamera(-14,14,14,-14,0.1,250);
+  const camOffset=new THREE.Vector3(24,28,24);
+
+  function resize(){
+    const w=canvas.clientWidth||1000;
+    const h=canvas.clientHeight||600;
+    renderer.setSize(w,h,false);
+    const aspect=w/h;
+    const d=13;
+    camera.left=-d*aspect;camera.right=d*aspect;
+    camera.top=d;camera.bottom=-d;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize',resize);
+  if(window.ResizeObserver){new ResizeObserver(resize).observe(canvas)}
+
+  // Lighting — warm Brisbane afternoon
+  scene.add(new THREE.HemisphereLight(0xFFF4DC,0x6A8A3A,0.6));
+  const sun=new THREE.DirectionalLight(0xFFE8B8,0.95);
+  sun.position.set(35,55,18);
+  scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xBFD6FF,0.25);
+  fill.position.set(-30,20,-20);
+  scene.add(fill);
+  scene.add(new THREE.AmbientLight(0xFFFFFF,0.15));
+
+  // Materials
+  const M={
+    bL:new THREE.MeshLambertMaterial({color:0x7FC5DD}),
+    bM:new THREE.MeshLambertMaterial({color:0x5BA8C5}),
+    bD:new THREE.MeshLambertMaterial({color:0x3B7894}),
+    bC:new THREE.MeshLambertMaterial({color:0xF4D89B}),
+    bCD:new THREE.MeshLambertMaterial({color:0xE8C277}),
+    bk:new THREE.MeshLambertMaterial({color:0x2A2A2A}),
+    wh:new THREE.MeshLambertMaterial({color:0xFFFFFF}),
+    pink:new THREE.MeshLambertMaterial({color:0xE89B73}),
+    // World materials
+    trunk:new THREE.MeshLambertMaterial({color:0x6B4423}),
+    trunkLight:new THREE.MeshLambertMaterial({color:0xA88B6B}),
+    leaf:new THREE.MeshLambertMaterial({color:0x5A8A2E}),
+    leafD:new THREE.MeshLambertMaterial({color:0x3D6B1E}),
+    leafL:new THREE.MeshLambertMaterial({color:0x7BA840}),
+    eucaLeaf:new THREE.MeshLambertMaterial({color:0x8FA882}),
+    eucaLeafL:new THREE.MeshLambertMaterial({color:0xA8BFA0}),
+    jacaranda:new THREE.MeshLambertMaterial({color:0x9D7BC4}),
+    jacarandaD:new THREE.MeshLambertMaterial({color:0x7B5A9F}),
+    jacarandaL:new THREE.MeshLambertMaterial({color:0xB89BD6}),
+    stone:new THREE.MeshLambertMaterial({color:0x9A9690}),
+    stoneD:new THREE.MeshLambertMaterial({color:0x6F6B65}),
+    sand:new THREE.MeshLambertMaterial({color:0xE8D89A}),
+    dirt:new THREE.MeshLambertMaterial({color:0x8A6240}),
+    bone:new THREE.MeshLambertMaterial({color:0xF5EBD0}),
+    boneD:new THREE.MeshLambertMaterial({color:0xD8C99C}),
+    houseBlue:new THREE.MeshLambertMaterial({color:0xA8D2E0}),
+    houseTrim:new THREE.MeshLambertMaterial({color:0xFAF4E1}),
+    roof:new THREE.MeshLambertMaterial({color:0xC44E3D}),
+    roofDark:new THREE.MeshLambertMaterial({color:0x8E2F22}),
+    fence:new THREE.MeshLambertMaterial({color:0xD4A574}),
+    fenceD:new THREE.MeshLambertMaterial({color:0xA37B4A}),
+    window:new THREE.MeshLambertMaterial({color:0xC8E0E8}),
+    flower1:new THREE.MeshLambertMaterial({color:0xF4D046}),
+    flower2:new THREE.MeshLambertMaterial({color:0xE684C4}),
+    flower3:new THREE.MeshLambertMaterial({color:0xE85D3C}),
+    flower4:new THREE.MeshLambertMaterial({color:0xFFFFFF}),
+    tomato:new THREE.MeshLambertMaterial({color:0xD83830}),
+    // Marqui materials
+    skin:new THREE.MeshLambertMaterial({color:0xF2B58A}),
+    skinD:new THREE.MeshLambertMaterial({color:0xD89D74}),
+    hair:new THREE.MeshLambertMaterial({color:0x2E1B12}),
+    hairL:new THREE.MeshLambertMaterial({color:0x3D2519}),
+    vest:new THREE.MeshLambertMaterial({color:0x2E5C3E}),
+    vestD:new THREE.MeshLambertMaterial({color:0x1F3F2A}),
+    shirt:new THREE.MeshLambertMaterial({color:0x8AA095}),
+    jeans:new THREE.MeshLambertMaterial({color:0x3D5F8C}),
+    jeansD:new THREE.MeshLambertMaterial({color:0x2A4366}),
+    boot:new THREE.MeshLambertMaterial({color:0x3D2818}),
+    metal:new THREE.MeshLambertMaterial({color:0x6E6E6E}),
+    metalD:new THREE.MeshLambertMaterial({color:0x3D3D3D}),
+    engineRed:new THREE.MeshLambertMaterial({color:0xD03828}),
+    tuftG:new THREE.MeshLambertMaterial({color:0x6FBA28}),
+    tuftGL:new THREE.MeshLambertMaterial({color:0x8FCC3D})
+  };
+
+  function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
+
+  // ===== BLUEY MODEL =====
+  const bluey=new THREE.Group();
+  const blueyBody=new THREE.Group();
+
+  // Torso (light blue with darker patches sprinkled)
+  blueyBody.add(box(1.3,0.7,0.7,M.bL));
+  // Cream belly stripe underneath
+  const belly=box(1.05,0.25,0.55,M.bC);
+  belly.position.y=-0.3;blueyBody.add(belly);
+  // A couple of darker patches on the back
+  const bp1=box(0.4,0.15,0.45,M.bM);
+  bp1.position.set(0.2,0.35,0);blueyBody.add(bp1);
+  const bp2=box(0.3,0.12,0.5,M.bD);
+  bp2.position.set(-0.35,0.36,0);blueyBody.add(bp2);
+
+  // Head
+  const head=new THREE.Group();
+  head.add(box(0.78,0.72,0.72,M.bL));
+
+  // Dark blue eye mask patches (signature Heeler look)
+  const maskTop=box(0.65,0.08,0.7,M.bD);
+  maskTop.position.set(0.05,0.36,0);
+  head.add(maskTop);
+  const maskL=box(0.42,0.5,0.06,M.bD);
+  maskL.position.set(0.18,0.08,0.37);
+  head.add(maskL);
+  const maskR=maskL.clone();maskR.position.z=-0.37;
+  head.add(maskR);
+  // Mask sides wrap
+  const maskSL=box(0.06,0.42,0.45,M.bD);
+  maskSL.position.set(-0.36,0.1,0);
+  head.add(maskSL);
+
+  // Cream snout (protrudes forward)
+  const snout=box(0.42,0.36,0.56,M.bC);
+  snout.position.set(0.5,-0.06,0);head.add(snout);
+  // Snout darker shadow underneath
+  const snoutD=box(0.4,0.06,0.54,M.bCD);
+  snoutD.position.set(0.5,-0.27,0);head.add(snoutD);
+
+  // Black nose tip
+  const nose=box(0.2,0.18,0.24,M.bk);
+  nose.position.set(0.73,0.08,0);head.add(nose);
+
+  // Eyes — big and friendly, white sclera + black pupils
+  const eyeWL=box(0.14,0.2,0.14,M.wh);
+  eyeWL.position.set(0.36,0.13,0.29);head.add(eyeWL);
+  const pupilL=box(0.09,0.14,0.07,M.bk);
+  pupilL.position.set(0.42,0.13,0.33);head.add(pupilL);
+  const sparkleL=box(0.04,0.05,0.03,M.wh);
+  sparkleL.position.set(0.46,0.18,0.36);head.add(sparkleL);
+  const eyeWR=eyeWL.clone();eyeWR.position.z=-0.29;head.add(eyeWR);
+  const pupilR=pupilL.clone();pupilR.position.z=-0.33;head.add(pupilR);
+  const sparkleR=sparkleL.clone();sparkleR.position.z=-0.36;head.add(sparkleR);
+
+  // Pink tongue (small, peeking out)
+  const tongue=box(0.1,0.05,0.16,M.pink);
+  tongue.position.set(0.68,-0.18,0);head.add(tongue);
+
+  // Upright ears (Blue Heeler style)
+  function ear(zSide){
+    const g=new THREE.Group();
+    const outer=box(0.22,0.46,0.2,M.bD);
+    g.add(outer);
+    const inner=box(0.13,0.32,0.06,M.bC);
+    inner.position.set(0.02,-0.04,0.08*zSide);
+    g.add(inner);
+    return g;
+  }
+  const earL=ear(1);
+  earL.position.set(-0.05,0.6,0.24);
+  earL.rotation.z=-0.15;
+  head.add(earL);
+  const earR=ear(-1);
+  earR.position.set(-0.05,0.6,-0.24);
+  earR.rotation.z=-0.15;
+  head.add(earR);
+
+  head.position.set(0.85,0.42,0);
+  blueyBody.add(head);
+
+  // Legs (light blue with cream paws)
+  function leg(x,z){
+    const g=new THREE.Group();
+    const upper=box(0.24,0.45,0.24,M.bL);
+    upper.position.y=-0.225;g.add(upper);
+    const paw=box(0.27,0.16,0.27,M.bC);
+    paw.position.y=-0.53;g.add(paw);
+    g.position.set(x,-0.35,z);
+    return g;
+  }
+  const lFL=leg(0.42,0.22);
+  const lFR=leg(0.42,-0.22);
+  const lBL=leg(-0.42,0.22);
+  const lBR=leg(-0.42,-0.22);
+  blueyBody.add(lFL,lFR,lBL,lBR);
+
+  // Stubby tail (short, angled up, cream tip)
+  const tail=new THREE.Group();
+  tail.add(box(0.3,0.3,0.3,M.bL));
+  const tTip=box(0.26,0.26,0.26,M.bC);
+  tTip.position.set(-0.18,0.16,0);
+  tail.add(tTip);
+  tail.position.set(-0.72,0.18,0);
+  tail.rotation.z=0.5;
+  blueyBody.add(tail);
+
+  blueyBody.position.y=0.72;
+  bluey.add(blueyBody);
+
+  // Soft shadow circle
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.6,20),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.28}));
+  shadow.rotation.x=-Math.PI/2;
+  shadow.position.y=0.03;
+  bluey.add(shadow);
+  scene.add(bluey);
+
+  // ===== WORLD =====
+  const TILE=1.5;
+  const SIZE=26;
+  const halfW=(SIZE*TILE)/2;
+
+  // Ground tiles with green variation
+  const groundGeo=new THREE.BoxGeometry(TILE,0.3,TILE);
+  const groundMat=new THREE.MeshLambertMaterial();
+  const ground=new THREE.InstancedMesh(groundGeo,groundMat,SIZE*SIZE);
+  const dummy=new THREE.Object3D();
+  const tmpC=new THREE.Color();
+  const grassShades=[0x84BC4D,0x8FBE4A,0x77B044,0x95C355,0x6FAA3E,0x9FCA5C];
+  let gi=0;
+  for(let i=0;i<SIZE;i++)for(let j=0;j<SIZE;j++){
+    const x=(i-SIZE/2+0.5)*TILE,z=(j-SIZE/2+0.5)*TILE;
+    dummy.position.set(x,-0.15,z);
+    dummy.updateMatrix();
+    ground.setMatrixAt(gi,dummy.matrix);
+    tmpC.setHex(grassShades[Math.floor(Math.random()*grassShades.length)]);
+    ground.setColorAt(gi,tmpC);
+    gi++;
+  }
+  ground.instanceMatrix.needsUpdate=true;
+  if(ground.instanceColor)ground.instanceColor.needsUpdate=true;
+  scene.add(ground);
+
+  // Some red-dirt patches (typical of Aussie yards)
+  for(let i=0;i<6;i++){
+    const dx=(Math.random()-0.5)*halfW*1.5;
+    const dz=(Math.random()-0.5)*halfW*1.5;
+    if(Math.abs(dx)<3&&Math.abs(dz)<3)continue;
+    const patch=box(1.5+Math.random()*1.5,0.03,1.5+Math.random()*1.5,new THREE.MeshLambertMaterial({color:0xC97A4A}));
+    patch.position.set(dx,0.01,dz);
+    scene.add(patch);
+  }
+
+  const obstacles=[];
+  const bones=[];
+
+  // ===== QUEENSLANDER HOUSE =====
+  function createHouse(){
+    const house=new THREE.Group();
+    const stumpH=0.5;
+    const stumpW=0.22;
+    // Stumps (the iconic raised foundation)
+    const stumpPositions=[[2.2,1.7],[-2.2,1.7],[2.2,-1.7],[-2.2,-1.7],[0,1.7],[0,-1.7],[2.2,0],[-2.2,0]];
+    stumpPositions.forEach(p=>{
+      const s=box(stumpW,stumpH,stumpW,M.fenceD);
+      s.position.set(p[0],stumpH/2,p[1]);
+      house.add(s);
+    });
+    // Veranda floor (slightly bigger than walls)
+    const verandaY=stumpH+0.05;
+    const veranda=box(5.4,0.2,4.4,M.fence);
+    veranda.position.y=verandaY+0.1;
+    house.add(veranda);
+    // Veranda railings
+    for(let i=0;i<6;i++){
+      const rx=2.55;
+      const rail=box(0.1,0.5,0.08,M.houseTrim);
+      rail.position.set(rx,verandaY+0.4,-1.8+i*0.7);
+      house.add(rail);
+      const rail2=rail.clone();
+      rail2.position.x=-rx;
+      house.add(rail2);
+    }
+    // Top railing beam
+    const railTopF=box(0.06,0.06,4.4,M.houseTrim);
+    railTopF.position.set(2.55,verandaY+0.65,0);
+    house.add(railTopF);
+    const railTopB=railTopF.clone();
+    railTopB.position.x=-2.55;
+    house.add(railTopB);
+
+    // Main walls
+    const wallH=2.2;
+    const wallY=verandaY+0.2+wallH/2;
+    const walls=box(4.6,wallH,3.6,M.houseBlue);
+    walls.position.y=wallY;
+    house.add(walls);
+    // Trim around top of walls
+    const trimT=box(4.7,0.1,3.7,M.houseTrim);
+    trimT.position.y=verandaY+0.2+wallH;
+    house.add(trimT);
+    const trimB=trimT.clone();
+    trimB.position.y=verandaY+0.25;
+    house.add(trimB);
+
+    // Door (front side, +X direction)
+    const door=box(0.05,1.5,0.85,M.fenceD);
+    door.position.set(2.32,verandaY+0.2+0.75,0);
+    house.add(door);
+    const doorKnob=box(0.04,0.06,0.06,M.houseTrim);
+    doorKnob.position.set(2.36,verandaY+0.95,0.3);
+    house.add(doorKnob);
+
+    // Windows (sides)
+    function window2(x,z,wid,depth){
+      const frame=box(wid,1.0,depth,M.houseTrim);
+      frame.position.set(x,verandaY+1.0,z);
+      house.add(frame);
+      const glass=box(wid*0.85,0.8,depth*1.1,M.window);
+      glass.position.set(x,verandaY+1.0,z);
+      house.add(glass);
+      // Cross frame
+      const cv=box(wid*0.92,0.05,depth*1.15,M.houseTrim);
+      cv.position.set(x,verandaY+1.0,z);
+      house.add(cv);
+      const ch=box(wid*0.04,0.85,depth*1.15,M.houseTrim);
+      ch.position.set(x,verandaY+1.0,z);
+      house.add(ch);
+    }
+    // Side windows (+Z and -Z)
+    window2(0.8,1.82,1.1,0.05);
+    window2(-0.8,1.82,1.1,0.05);
+    window2(0.8,-1.82,1.1,0.05);
+    window2(-0.8,-1.82,1.1,0.05);
+    // Back window
+    window2(-2.32,0,0.05,1.2);
+
+    // Roof — pyramid via 4-segment cone
+    const roofH=1.6;
+    const roofMesh=new THREE.Mesh(new THREE.CylinderGeometry(0,3.6,roofH,4,1),M.roof);
+    roofMesh.position.y=verandaY+0.2+wallH+roofH/2;
+    roofMesh.rotation.y=Math.PI/4;
+    house.add(roofMesh);
+    // Roof ridge cap
+    const ridge=box(0.3,0.15,0.3,M.roofDark);
+    ridge.position.y=verandaY+0.2+wallH+roofH+0.075;
+    house.add(ridge);
+    // Chimney
+    const chimney=box(0.4,0.7,0.4,M.houseTrim);
+    chimney.position.set(-1.2,verandaY+0.2+wallH+0.9,1.0);
+    house.add(chimney);
+
+    // Steps up to veranda (front)
+    for(let i=0;i<3;i++){
+      const step=box(1.4,0.15,0.3,M.fence);
+      step.position.set(2.85+i*0.3,0.075+i*0.15,0);
+      house.add(step);
+    }
+
+    return house;
+  }
+  const house=createHouse();
+  const HX=-halfW+5.5,HZ=-halfW+5;
+  house.position.set(HX,0,HZ);
+  scene.add(house);
+  // House occupies roughly 5.4 x 4.4. Use multiple obstacle circles to cover it.
+  const houseR=1.6;
+  obstacles.push({x:HX,z:HZ,r:2.8});
+  obstacles.push({x:HX+1.8,z:HZ,r:1.8});
+  obstacles.push({x:HX-1.8,z:HZ,r:1.8});
+  obstacles.push({x:HX,z:HZ+1.5,r:1.8});
+  obstacles.push({x:HX,z:HZ-1.5,r:1.8});
+
+  // ===== HILLS HOIST (rotary clothesline) =====
+  function createHoist(x,z){
+    const h=new THREE.Group();
+    const pole=box(0.18,2.8,0.18,M.fenceD);
+    pole.position.y=1.4;
+    h.add(pole);
+    const armsGroup=new THREE.Group();
+    const a1=box(2.8,0.08,0.08,M.fenceD);
+    armsGroup.add(a1);
+    const a2=box(0.08,0.08,2.8,M.fenceD);
+    armsGroup.add(a2);
+    // Diagonal supports
+    const d1=box(1.6,0.05,0.05,M.fenceD);
+    d1.position.set(0.7,-0.25,0);
+    d1.rotation.z=-0.35;
+    armsGroup.add(d1);
+    const d2=d1.clone();d2.position.x=-0.7;d2.rotation.z=0.35;armsGroup.add(d2);
+    const d3=box(0.05,0.05,1.6,M.fenceD);
+    d3.position.set(0,-0.25,0.7);
+    d3.rotation.x=0.35;
+    armsGroup.add(d3);
+    const d4=d3.clone();d4.position.z=-0.7;d4.rotation.x=-0.35;armsGroup.add(d4);
+    // Clothes
+    const clothColors=[0xE85D3C,0x5BBED8,0xF4D046,0x7BA840,0xE89B73,0xE684C4,0xFFFFFF,0x9D7BC4];
+    for(let i=0;i<10;i++){
+      const c=new THREE.MeshLambertMaterial({color:clothColors[i%clothColors.length]});
+      const cloth=box(0.28,0.4,0.05,c);
+      const ang=(i/10)*Math.PI*2;
+      const r=0.5+(i%3)*0.35;
+      cloth.position.set(Math.cos(ang)*r,-0.3,Math.sin(ang)*r);
+      armsGroup.add(cloth);
+    }
+    armsGroup.position.y=2.8;
+    armsGroup.userData.rotates=true;
+    h.add(armsGroup);
+    h.userData.spinning=armsGroup;
+    h.position.set(x,0,z);
+    return h;
+  }
+  const HOX=halfW-7,HOZ=-halfW+6;
+  const hoist=createHoist(HOX,HOZ);
+  scene.add(hoist);
+  obstacles.push({x:HOX,z:HOZ,r:0.4});
+
+  // ===== TREES =====
+  function gumTree(x,z){
+    const t=new THREE.Group();
+    const h=3.6+Math.random()*1.4;
+    const trunk=box(0.35,h,0.35,M.trunkLight);
+    trunk.position.y=h/2;
+    t.add(trunk);
+    // Sparse top foliage
+    const lm=[M.eucaLeaf,M.eucaLeafL];
+    const offs=[[0,0.1,0,1.2],[0.65,0.3,0,0.7],[-0.65,0.3,0,0.7],[0,0.3,0.65,0.7],[0,0.3,-0.65,0.7],[0,0.9,0,0.9],[0.45,0.7,0.45,0.55],[-0.45,0.7,-0.45,0.55]];
+    offs.forEach(o=>{
+      const lf=box(o[3],o[3],o[3],lm[Math.floor(Math.random()*2)]);
+      lf.position.set(o[0],h+0.3+o[1],o[2]);
+      t.add(lf);
+    });
+    t.position.set(x,0,z);
+    scene.add(t);
+    obstacles.push({x,z,r:0.85});
+  }
+  function jacarandaTree(x,z){
+    const t=new THREE.Group();
+    const h=2.2+Math.random()*0.6;
+    const trunk=box(0.5,h,0.5,M.trunk);
+    trunk.position.y=h/2;
+    t.add(trunk);
+    const lm=[M.jacarandaD,M.jacaranda,M.jacarandaL];
+    const offs=[[0,0,0,1.5],[0.85,-0.05,0,0.9],[-0.85,-0.05,0,0.9],[0,-0.05,0.85,0.9],[0,-0.05,-0.85,0.9],[0,1.0,0,1.1],[0.55,0.6,0.55,0.75],[-0.55,0.6,-0.55,0.75],[0.55,0.6,-0.55,0.75],[-0.55,0.6,0.55,0.75]];
+    offs.forEach(o=>{
+      const lf=box(o[3],o[3],o[3],lm[Math.floor(Math.random()*3)]);
+      lf.position.set(o[0],h+0.55+o[1],o[2]);
+      t.add(lf);
+    });
+    // Some fallen jacaranda flowers at the base
+    for(let i=0;i<5;i++){
+      const f=box(0.18,0.04,0.18,M.jacarandaL);
+      f.position.set((Math.random()-0.5)*2.2,0.02,(Math.random()-0.5)*2.2);
+      t.add(f);
+    }
+    t.position.set(x,0,z);
+    scene.add(t);
+    obstacles.push({x,z,r:0.95});
+  }
+  function regularTree(x,z){
+    const t=new THREE.Group();
+    const h=1.8+Math.random()*0.8;
+    const trunk=box(0.5,h,0.5,M.trunk);
+    trunk.position.y=h/2;
+    t.add(trunk);
+    const lm=[M.leafD,M.leaf,M.leafL];
+    const offs=[[0,0,0,1.4],[0.8,-0.1,0,0.85],[-0.8,-0.1,0,0.85],[0,-0.1,0.85,0.85],[0,-0.1,-0.85,0.85],[0,0.9,0,1.0],[0.45,0.55,0.45,0.7],[-0.45,0.55,-0.45,0.7],[0.45,0.55,-0.45,0.7],[-0.45,0.55,0.45,0.7]];
+    offs.forEach(o=>{
+      const lf=box(o[3],o[3],o[3],lm[Math.floor(Math.random()*3)]);
+      lf.position.set(o[0],h+0.5+o[1],o[2]);
+      t.add(lf);
+    });
+    t.position.set(x,0,z);
+    scene.add(t);
+    obstacles.push({x,z,r:0.9});
+  }
+
+  function rock(x,z){
+    const r=new THREE.Group();
+    const s1=0.7+Math.random()*0.4;
+    const a=box(s1,s1*0.65,s1,M.stone);
+    a.position.y=s1*0.325;r.add(a);
+    const s2=0.45+Math.random()*0.3;
+    const b=box(s2,s2*0.6,s2,M.stoneD);
+    b.position.set(s1*0.35,s2*0.3,-s1*0.2);
+    r.add(b);
+    r.position.set(x,0,z);
+    scene.add(r);
+    obstacles.push({x,z,r:0.7});
+  }
+
+  function bush(x,z){
+    const b=new THREE.Group();
+    const cols=[M.leaf,M.leafL];
+    for(let i=0;i<4;i++){
+      const s=0.35+Math.random()*0.2;
+      const k=box(s,s,s,cols[i%2]);
+      k.position.set((Math.random()-0.5)*0.5,s*0.5+Math.random()*0.15,(Math.random()-0.5)*0.5);
+      b.add(k);
+    }
+    b.position.set(x,0,z);
+    scene.add(b);
+    obstacles.push({x,z,r:0.55});
+  }
+
+  // ===== SANDPIT =====
+  function createSandpit(x,z){
+    const sp=new THREE.Group();
+    const ww=2.2;
+    const wt=0.16;
+    const wh=0.22;
+    const cols=[[0,ww/2-wt/2,ww,wt],[0,-ww/2+wt/2,ww,wt],[ww/2-wt/2,0,wt,ww],[-ww/2+wt/2,0,wt,ww]];
+    cols.forEach(c=>{
+      const w=box(c[2],wh,c[3],M.fence);
+      w.position.set(c[0],wh/2,c[1]);
+      sp.add(w);
+    });
+    const sand=box(ww-2*wt,0.1,ww-2*wt,M.sand);
+    sand.position.y=0.05;
+    sp.add(sand);
+    // Tiny sand castle
+    const sc1=box(0.3,0.3,0.3,M.sand);
+    sc1.position.set(0.4,0.25,0.3);
+    sp.add(sc1);
+    const sc2=box(0.18,0.18,0.18,M.sand);
+    sc2.position.set(0.4,0.49,0.3);
+    sp.add(sc2);
+    // Red bucket
+    const bucket=box(0.22,0.25,0.22,new THREE.MeshLambertMaterial({color:0xE85D3C}));
+    bucket.position.set(-0.5,0.225,-0.3);
+    sp.add(bucket);
+    sp.position.set(x,0,z);
+    scene.add(sp);
+    obstacles.push({x,z,r:1.3});
+  }
+  createSandpit(halfW-5.5,halfW-6);
+
+  // ===== GARDEN BED =====
+  function createGarden(x,z){
+    const g=new THREE.Group();
+    // Wood border
+    const border=box(2.6,0.15,1.6,M.fence);
+    border.position.y=0.075;
+    g.add(border);
+    // Dirt
+    const dirt=box(2.4,0.1,1.4,M.dirt);
+    dirt.position.y=0.155;
+    g.add(dirt);
+    // Plants
+    for(let i=0;i<6;i++){
+      const p=box(0.16,0.32+Math.random()*0.2,0.16,M.leafL);
+      p.position.set((Math.random()-0.5)*2.0,0.36,(Math.random()-0.5)*1.0);
+      g.add(p);
+    }
+    for(let i=0;i<4;i++){
+      const t=box(0.12,0.12,0.12,M.tomato);
+      t.position.set((Math.random()-0.5)*2.0,0.35+Math.random()*0.2,(Math.random()-0.5)*1.0);
+      g.add(t);
+    }
+    g.position.set(x,0,z);
+    scene.add(g);
+    obstacles.push({x,z,r:1.4});
+  }
+  createGarden(halfW-5,-3);
+
+  // ===== FENCE PERIMETER =====
+  function createFence(){
+    const fenceH=0.85;
+    const postW=0.18;
+    const railH=0.1;
+    // Posts every 2 units
+    for(let i=-halfW;i<=halfW;i+=2.2){
+      [[i,halfW],[i,-halfW],[halfW,i],[-halfW,i]].forEach(p=>{
+        const post=box(postW,fenceH,postW,M.fence);
+        post.position.set(p[0],fenceH/2,p[1]);
+        scene.add(post);
+      });
+    }
+    // Rails
+    [0.3,0.65].forEach(y=>{
+      [halfW,-halfW].forEach(z=>{
+        const r=box(halfW*2,railH,postW*0.5,M.fenceD);
+        r.position.set(0,y,z);
+        scene.add(r);
+      });
+      [halfW,-halfW].forEach(x=>{
+        const r=box(postW*0.5,railH,halfW*2,M.fenceD);
+        r.position.set(x,y,0);
+        scene.add(r);
+      });
+    });
+  }
+  createFence();
+
+  // ===== BONE COLLECTIBLES =====
+  function createBone(x,z){
+    const b=new THREE.Group();
+    // Shaft
+    const shaft=box(0.45,0.13,0.13,M.bone);
+    b.add(shaft);
+    // Two knobs at each end (top + bottom = ball shape)
+    [0.24,-0.24].forEach(ex=>{
+      const k1=box(0.16,0.16,0.16,M.bone);
+      k1.position.set(ex,0.1,0);
+      b.add(k1);
+      const k2=box(0.16,0.16,0.16,M.bone);
+      k2.position.set(ex,-0.1,0);
+      b.add(k2);
+    });
+    b.position.set(x,0.4,z);
+    scene.add(b);
+    bones.push({x,z,mesh:b,collected:false,phase:Math.random()*Math.PI*2});
+  }
+
+  // ===== MARQUI (the gardener) =====
+  function createMarqui(){
+    const m=new THREE.Group();
+    const mBody=new THREE.Group();
+
+    // Legs (jeans + boots)
+    function mLeg(x){
+      const g=new THREE.Group();
+      const upper=box(0.3,0.7,0.3,M.jeans);
+      upper.position.y=-0.35;g.add(upper);
+      // Knee shadow
+      const knee=box(0.31,0.06,0.31,M.jeansD);
+      knee.position.y=-0.5;g.add(knee);
+      const boot=box(0.34,0.2,0.42,M.boot);
+      boot.position.set(0,-0.79,0.06);g.add(boot);
+      g.position.set(x,0,0);
+      return g;
+    }
+    const legL=mLeg(0.2);
+    const legR=mLeg(-0.2);
+    mBody.add(legL,legR);
+
+    // Torso — green puffer vest over sage long-sleeve shirt
+    const torso=box(0.95,1.1,0.55,M.vest);
+    torso.position.y=0.55;
+    mBody.add(torso);
+    // Puffer panel lines (horizontal stripes that suggest quilting)
+    for(let i=0;i<4;i++){
+      const line=box(0.97,0.03,0.57,M.vestD);
+      line.position.y=0.18+i*0.26;
+      mBody.add(line);
+    }
+    // Vest zipper down the middle
+    const zip=box(0.04,1.1,0.58,M.metalD);
+    zip.position.y=0.55;
+    mBody.add(zip);
+    // Shirt collar peeking out at neck
+    const collar=box(0.55,0.18,0.42,M.shirt);
+    collar.position.y=1.15;
+    mBody.add(collar);
+
+    // Arms — sage shirt sleeves with peach hands
+    function mArm(x,sleeveCol){
+      const g=new THREE.Group();
+      const sleeve=box(0.24,0.55,0.28,sleeveCol);
+      sleeve.position.y=-0.275;g.add(sleeve);
+      // Cuff
+      const cuff=box(0.25,0.05,0.29,M.shirt);
+      cuff.position.y=-0.55;g.add(cuff);
+      const hand=box(0.22,0.2,0.25,M.skin);
+      hand.position.y=-0.68;g.add(hand);
+      g.position.set(x,1.0,0);
+      return g;
+    }
+    const armL=mArm(0.6,M.shirt);
+    const armR=mArm(-0.6,M.shirt);
+    // Both arms reach forward to grip the strimmer (active mowing pose)
+    armR.rotation.x=1.1;
+    armR.rotation.z=0.25;
+    armR.position.z=0.18;
+    armL.rotation.x=0.85;
+    armL.rotation.z=-0.2;
+    armL.position.z=0.22;
+    mBody.add(armL,armR);
+
+    // Head — peach skin
+    const head=new THREE.Group();
+    const skullH=box(0.7,0.7,0.65,M.skin);
+    head.add(skullH);
+
+    // Beard (full, covers cheeks + chin)
+    const beardMain=box(0.68,0.36,0.6,M.hair);
+    beardMain.position.set(0,-0.2,0.04);
+    head.add(beardMain);
+    // Beard side panels (wraps slightly around)
+    const beardSL=box(0.06,0.32,0.5,M.hair);
+    beardSL.position.set(0.36,-0.18,0.04);
+    head.add(beardSL);
+    const beardSR=beardSL.clone();
+    beardSR.position.x=-0.36;
+    head.add(beardSR);
+    // Lower beard fuller at chin
+    const beardChin=box(0.4,0.15,0.5,M.hair);
+    beardChin.position.set(0,-0.4,0.08);
+    head.add(beardChin);
+
+    // Mustache (above mouth, under nose)
+    const mus=box(0.38,0.08,0.32,M.hair);
+    mus.position.set(0,-0.04,0.3);
+    head.add(mus);
+
+    // Hair — big curly volume on top
+    const hairBase=box(0.74,0.22,0.68,M.hair);
+    hairBase.position.set(0,0.42,-0.02);
+    head.add(hairBase);
+    // Curly bumps (lots of small cubes for that voluminous curl texture)
+    const curls=[
+      [-0.22,0.6,0.18,0.2],[0.05,0.65,0.22,0.2],[0.26,0.6,0.12,0.2],
+      [-0.28,0.58,-0.12,0.2],[0.22,0.6,-0.18,0.2],[0,0.7,0.0,0.22],
+      [-0.32,0.5,0.05,0.18],[0.32,0.52,0.08,0.18],[-0.12,0.7,-0.08,0.2],
+      [0.15,0.7,0.05,0.2],[-0.18,0.52,0.32,0.18],[0.18,0.52,0.32,0.18],
+      [0,0.55,0.34,0.2],[-0.3,0.6,-0.25,0.18],[0.3,0.58,-0.25,0.18]
+    ];
+    curls.forEach(c=>{
+      const k=box(c[3],c[3],c[3],M.hair);
+      k.position.set(c[0],c[1],c[2]);
+      head.add(k);
+    });
+
+    // Eyebrows (thick, dark)
+    const browL=box(0.18,0.07,0.05,M.hair);
+    browL.position.set(0.15,0.2,0.32);
+    head.add(browL);
+    const browR=browL.clone();
+    browR.position.x=-0.15;
+    head.add(browR);
+
+    // Eyes (white sclera + black pupils)
+    const eyeWL=box(0.13,0.16,0.05,M.wh);
+    eyeWL.position.set(0.15,0.08,0.32);
+    head.add(eyeWL);
+    const pupL=box(0.07,0.1,0.04,M.bk);
+    pupL.position.set(0.15,0.08,0.345);
+    head.add(pupL);
+    const eyeWR=eyeWL.clone();eyeWR.position.x=-0.15;head.add(eyeWR);
+    const pupR=pupL.clone();pupR.position.x=-0.15;head.add(pupR);
+
+    // Nose (small, slightly protruding)
+    const nose=box(0.13,0.16,0.14,M.skinD);
+    nose.position.set(0,0.0,0.38);
+    head.add(nose);
+    // Nose tip highlight
+    const noseTip=box(0.1,0.08,0.05,M.skin);
+    noseTip.position.set(0,-0.02,0.43);
+    head.add(noseTip);
+
+    // Ears
+    const earL=box(0.08,0.18,0.16,M.skin);
+    earL.position.set(0.37,0.08,-0.05);
+    head.add(earL);
+    const earR=earL.clone();earR.position.x=-0.37;head.add(earR);
+
+    head.position.y=1.62;
+    mBody.add(head);
+
+    // ===== STRIMMER (desbrozadora) =====
+    const strimmer=new THREE.Group();
+    // Long pole — origin at the TOP (handle end), pointing down -Y
+    const poleLen=2.0;
+    const pole=box(0.07,poleLen,0.07,M.metal);
+    pole.position.y=-poleLen/2;
+    strimmer.add(pole);
+    // Engine block at top (orange-red box like a real strimmer engine)
+    const engine=box(0.22,0.32,0.28,M.engineRed);
+    engine.position.y=0.05;
+    strimmer.add(engine);
+    // Engine details
+    const engineCap=box(0.1,0.06,0.1,M.metalD);
+    engineCap.position.set(0,0.22,0);
+    strimmer.add(engineCap);
+    // Bicycle-style handle bar (so it looks held)
+    const handle=box(0.55,0.05,0.06,M.metalD);
+    handle.position.y=-0.55;
+    strimmer.add(handle);
+    // Grip
+    const grip=box(0.12,0.06,0.1,M.bk);
+    grip.position.set(0.22,-0.55,0);
+    strimmer.add(grip);
+    // Cutting head at bottom — disc with blade marks
+    const cuttingHead=new THREE.Group();
+    const disc=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26,0.26,0.06,14),
+      M.engineRed
+    );
+    cuttingHead.add(disc);
+    // Blade lines on top of disc
+    for(let i=0;i<4;i++){
+      const blade=box(0.5,0.02,0.04,M.metalD);
+      blade.rotation.y=(i/4)*Math.PI*2;
+      blade.position.y=0.04;
+      cuttingHead.add(blade);
+    }
+    // Guard above the disc
+    const guard=box(0.5,0.08,0.3,M.engineRed);
+    guard.position.y=0.12;
+    cuttingHead.add(guard);
+    cuttingHead.position.y=-poleLen;
+    strimmer.add(cuttingHead);
+    // Active mowing pose: held in front of body, pole angled forward-down to ground
+    strimmer.position.set(-0.32,0.4,0.55);
+    strimmer.rotation.x=-1.0;
+    strimmer.rotation.y=0.18;
+    strimmer.rotation.z=0;
+    mBody.add(strimmer);
+
+    // Shadow
+    const mShadow=new THREE.Mesh(
+      new THREE.CircleGeometry(0.45,16),
+      new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25})
+    );
+    mShadow.rotation.x=-Math.PI/2;
+    mShadow.position.y=0.04;
+    m.add(mShadow);
+
+    mBody.position.y=0.8;
+    m.add(mBody);
+
+    return {group:m,body:mBody,legL,legR,armL,armR,strimmer,cuttingHead};
+  }
+
+  const marqui=createMarqui();
+  marqui.group.position.set(halfW-7,0,halfW-3);
+  scene.add(marqui.group);
+
+  // ===== GRASS TUFTS (briznas) =====
+  const grassTufts=[];
+  function createGrassTuft(x,z){
+    const t=new THREE.Group();
+    const blades=4+Math.floor(Math.random()*3);
+    for(let i=0;i<blades;i++){
+      const h=0.3+Math.random()*0.25;
+      const mat=Math.random()<0.5?M.tuftG:M.tuftGL;
+      const blade=box(0.05,h,0.05,mat);
+      blade.position.set(
+        (Math.random()-0.5)*0.35,
+        h/2,
+        (Math.random()-0.5)*0.35
+      );
+      blade.rotation.z=(Math.random()-0.5)*0.25;
+      blade.rotation.x=(Math.random()-0.5)*0.15;
+      t.add(blade);
+    }
+    t.position.set(x,0,z);
+    t.scale.set(0.1,0.1,0.1);
+    scene.add(t);
+    const tuft={x,z,mesh:t,cut:false,growing:true,growT:0};
+    grassTufts.push(tuft);
+    return tuft;
+  }
+
+  // Spawn initial tufts
+  for(let i=0;i<14;i++){
+    let x,z,ok=false,t=0;
+    while(!ok&&t<25){
+      x=(Math.random()-0.5)*halfW*1.75;
+      z=(Math.random()-0.5)*halfW*1.75;
+      ok=farFromObstacles(x,z,0.9)&&farFromHouse(x,z,3.5)&&farFromCenter(x,z,1.5);
+      t++;
+    }
+    if(ok){
+      const tuft=createGrassTuft(x,z);
+      // Skip grow-in animation for initial tufts
+      tuft.mesh.scale.set(1,1,1);
+      tuft.growing=false;
+      tuft.growT=1;
+    }
+  }
+
+  // Decorative flowers
+  function flower(x,z){
+    const f=new THREE.Group();
+    const stem=box(0.05,0.28,0.05,M.leaf);
+    stem.position.y=0.14;f.add(stem);
+    const fmats=[M.flower1,M.flower2,M.flower3,M.flower4];
+    const head=box(0.16,0.1,0.16,fmats[Math.floor(Math.random()*4)]);
+    head.position.y=0.32;f.add(head);
+    f.position.set(x,0,z);
+    scene.add(f);
+  }
+
+  // ===== POPULATE THE WORLD =====
+  function farFromHouse(x,z,m){
+    return Math.abs(x-HX)>m||Math.abs(z-HZ)>m;
+  }
+  function farFromCenter(x,z,m){return Math.abs(x)>m||Math.abs(z)>m}
+  function farFromObstacles(x,z,m){return obstacles.every(o=>(o.x-x)**2+(o.z-z)**2>m*m)}
+
+  // Gum trees (eucalypts) on perimeter
+  for(let i=0;i<10;i++){
+    let x,z,ok=false,t=0;
+    while(!ok&&t<30){
+      x=(Math.random()-0.5)*halfW*1.8;
+      z=(Math.random()-0.5)*halfW*1.8;
+      ok=farFromCenter(x,z,2.5)&&farFromObstacles(x,z,2.2)&&farFromHouse(x,z,4);
+      t++;
+    }
+    if(ok)gumTree(x,z);
+  }
+  // Jacaranda trees
+  for(let i=0;i<3;i++){
+    let x,z,ok=false,t=0;
+    while(!ok&&t<30){
+      x=(Math.random()-0.5)*halfW*1.7;
+      z=(Math.random()-0.5)*halfW*1.7;
+      ok=farFromCenter(x,z,3.5)&&farFromObstacles(x,z,2.8)&&farFromHouse(x,z,4);
+      t++;
+    }
+    if(ok)jacarandaTree(x,z);
+  }
+  // Regular trees
+  for(let i=0;i<8;i++){
+    let x,z,ok=false,t=0;
+    while(!ok&&t<30){
+      x=(Math.random()-0.5)*halfW*1.85;
+      z=(Math.random()-0.5)*halfW*1.85;
+      ok=farFromCenter(x,z,2.5)&&farFromObstacles(x,z,2.0)&&farFromHouse(x,z,4);
+      t++;
+    }
+    if(ok)regularTree(x,z);
+  }
+  // Rocks
+  for(let i=0;i<8;i++){
+    const x=(Math.random()-0.5)*halfW*1.85;
+    const z=(Math.random()-0.5)*halfW*1.85;
+    if(farFromCenter(x,z,2)&&farFromObstacles(x,z,1.5)&&farFromHouse(x,z,3.5))rock(x,z);
+  }
+  // Bushes
+  for(let i=0;i<12;i++){
+    const x=(Math.random()-0.5)*halfW*1.9;
+    const z=(Math.random()-0.5)*halfW*1.9;
+    if(farFromCenter(x,z,2)&&farFromObstacles(x,z,1.2)&&farFromHouse(x,z,3.5))bush(x,z);
+  }
+  // Bones
+  let bonesPlaced=0;
+  while(bonesPlaced<12){
+    const x=(Math.random()-0.5)*halfW*1.7;
+    const z=(Math.random()-0.5)*halfW*1.7;
+    if(farFromCenter(x,z,1.5)&&farFromObstacles(x,z,0.85)&&farFromHouse(x,z,3.5)){
+      createBone(x,z);
+      bonesPlaced++;
+    }
+  }
+  // Flowers scattered
+  for(let i=0;i<40;i++){
+    flower((Math.random()-0.5)*halfW*1.95,(Math.random()-0.5)*halfW*1.95);
+  }
+
+  // ===== INPUT & STATE =====
+  const keys={};
+
+  // ===== AUDIO SYSTEM =====
+  let audioCtx=null,musicGain=null,sfxGain=null;
+  let musicEnabled=true,musicStarted=false,musicTimer=null;
+  const musicBtn=document.getElementById('music-btn');
+  const musicLabel=document.getElementById('music-label');
+
+  function initAudio(){
+    if(audioCtx)return;
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      audioCtx=new AC();
+      musicGain=audioCtx.createGain();
+      musicGain.gain.value=0.18;
+      musicGain.connect(audioCtx.destination);
+      sfxGain=audioCtx.createGain();
+      sfxGain.gain.value=0.35;
+      sfxGain.connect(audioCtx.destination);
+    }catch(e){console.warn('Audio not available',e)}
+  }
+
+  function playTone(freq,startT,dur,type,vol,dest){
+    if(!audioCtx)return;
+    const osc=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    osc.type=type;
+    osc.frequency.value=freq;
+    g.gain.setValueAtTime(0,startT);
+    g.gain.linearRampToValueAtTime(vol,startT+0.015);
+    g.gain.exponentialRampToValueAtTime(0.001,startT+dur);
+    osc.connect(g);
+    g.connect(dest||musicGain);
+    osc.start(startT);
+    osc.stop(startT+dur+0.05);
+  }
+
+  // Original bouncy melody in C major — bar = 8 eighth notes at 132 BPM
+  const BPM=132,EIGHTH=60/BPM/2;
+  const melody=[
+    // [beatOffset, freqHz, durBeats]
+    [0,523.25,0.75],[0.75,659.25,0.75],[1.5,783.99,0.5],[2,659.25,0.5],
+    [2.5,880.00,1],[3.5,783.99,0.5],
+    [4,698.46,0.5],[4.5,587.33,0.5],[5,659.25,1],[6,523.25,0.5],
+    [6.5,587.33,0.5],[7,659.25,1]
+  ];
+  const melodyB=[
+    [0,659.25,0.75],[0.75,783.99,0.75],[1.5,880.00,0.5],[2,783.99,0.5],
+    [2.5,1046.50,1],[3.5,880.00,0.5],
+    [4,783.99,0.5],[4.5,698.46,0.5],[5,659.25,1],[6,587.33,0.5],
+    [6.5,523.25,0.5],[7,523.25,1]
+  ];
+  const bass=[
+    [0,130.81,1],[1,130.81,1],[2,196.00,1],[3,196.00,1],
+    [4,174.61,1],[5,174.61,1],[6,196.00,1],[7,196.00,1]
+  ];
+  const bassB=[
+    [0,174.61,1],[1,174.61,1],[2,130.81,1],[3,130.81,1],
+    [4,196.00,1],[5,196.00,1],[6,130.81,1],[7,130.81,1]
+  ];
+  // Marimba-like blip on every offbeat for bounce
+  const blip=[];
+  for(let i=0;i<8;i++)blip.push([i+0.5,1046.50,0.1]);
+
+  let musicBarIdx=0;
+  function scheduleBar(startT){
+    const useB=musicBarIdx%2===1;
+    const mel=useB?melodyB:melody,bs=useB?bassB:bass;
+    mel.forEach(n=>playTone(n[1],startT+n[0]*EIGHTH,n[2]*EIGHTH,'triangle',0.22,musicGain));
+    bs.forEach(n=>playTone(n[1],startT+n[0]*EIGHTH,n[2]*EIGHTH*0.85,'sine',0.16,musicGain));
+    blip.forEach(n=>playTone(n[1],startT+n[0]*EIGHTH,n[2]*EIGHTH,'sine',0.05,musicGain));
+    musicBarIdx++;
+  }
+
+  function startMusic(){
+    if(!audioCtx||musicStarted)return;
+    musicStarted=true;
+    const BAR_LEN=8*EIGHTH;
+    let nextBarT=audioCtx.currentTime+0.1;
+    function tick(){
+      if(!musicEnabled||!musicStarted){musicTimer=setTimeout(tick,200);return}
+      while(nextBarT<audioCtx.currentTime+0.5){
+        scheduleBar(nextBarT);
+        nextBarT+=BAR_LEN;
+      }
+      musicTimer=setTimeout(tick,BAR_LEN*500);
+    }
+    tick();
+  }
+  function stopMusic(){
+    musicStarted=false;
+    if(musicTimer){clearTimeout(musicTimer);musicTimer=null}
+    if(musicGain){
+      musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      musicGain.gain.setValueAtTime(musicGain.gain.value,audioCtx.currentTime);
+      musicGain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.3);
+      setTimeout(()=>{if(musicGain)musicGain.gain.value=0.18},400);
+    }
+  }
+
+  function sfxPickup(){
+    if(!audioCtx||!sfxGain)return;
+    const t=audioCtx.currentTime;
+    playTone(783.99,t,0.10,'triangle',0.3,sfxGain);
+    playTone(1046.50,t+0.07,0.10,'triangle',0.3,sfxGain);
+    playTone(1318.51,t+0.14,0.18,'triangle',0.32,sfxGain);
+  }
+
+  function sfxBoing(){
+    if(!audioCtx||!sfxGain)return;
+    const t=audioCtx.currentTime;
+    const osc=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    osc.type='sawtooth';
+    osc.frequency.setValueAtTime(140,t);
+    osc.frequency.exponentialRampToValueAtTime(520,t+0.08);
+    osc.frequency.exponentialRampToValueAtTime(180,t+0.32);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(0.35,t+0.015);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+    // Add a little wobble via lfo
+    const lfo=audioCtx.createOscillator();
+    const lfoG=audioCtx.createGain();
+    lfo.frequency.value=18;
+    lfoG.gain.value=40;
+    lfo.connect(lfoG);
+    lfoG.connect(osc.frequency);
+    lfo.start(t);
+    lfo.stop(t+0.4);
+    osc.connect(g);
+    g.connect(sfxGain);
+    osc.start(t);
+    osc.stop(t+0.45);
+    // Light "thud" body
+    playTone(70,t,0.15,'sine',0.4,sfxGain);
+  }
+
+  function updateMusicBtn(){
+    if(musicEnabled){
+      musicBtn.classList.remove('muted');
+      musicLabel.textContent='Música';
+      document.getElementById('music-icon').innerHTML='<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
+    }else{
+      musicBtn.classList.add('muted');
+      musicLabel.textContent='Silencio';
+      document.getElementById('music-icon').innerHTML='<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><line x1="3" y1="3" x2="21" y2="21"/>';
+    }
+  }
+  musicBtn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    musicEnabled=!musicEnabled;
+    updateMusicBtn();
+    if(musicEnabled){
+      initAudio();
+      if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+      if(musicGain)musicGain.gain.value=0.18;
+      if(!musicStarted)startMusic();
+    }else{
+      stopMusic();
+    }
+    canvas.focus();
+  });
+
+  function ensureAudioStarted(){
+    initAudio();
+    if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+    if(musicEnabled&&!musicStarted)startMusic();
+  }
+
+  const camDir=new THREE.Vector3(-camOffset.x,0,-camOffset.z).normalize();
+  const camRight=new THREE.Vector3().crossVectors(camDir,new THREE.Vector3(0,1,0)).normalize();
+  let foxYaw=0,foxYawTarget=0,foxY=0,vy=0,grounded=true,walkPhase=0,speed=0;
+  const totalBones=bones.length;
+  let collected=0;
+  boneCountEl.textContent=`0 / ${totalBones}`;
+
+  // Knockback state (when Bluey collides with Marqui)
+  const knockback={active:false,vx:0,vz:0,t:0};
+  const canvasWrap=document.querySelector('.canvas-wrap');
+  const statEl=document.getElementById('hud-stat');
+
+  function pickupEffect(worldX,worldY,worldZ){
+    // Project world position to screen for the floating "+1"
+    const v=new THREE.Vector3(worldX,worldY,worldZ);
+    v.project(camera);
+    const rect=canvas.getBoundingClientRect();
+    const wrapRect=canvasWrap.getBoundingClientRect();
+    const sx=(v.x*0.5+0.5)*rect.width;
+    const sy=(-v.y*0.5+0.5)*rect.height;
+    const burst=document.createElement('div');
+    burst.className='pickup-burst';
+    burst.textContent='+1';
+    burst.style.left=sx+'px';
+    burst.style.top=sy+'px';
+    canvasWrap.appendChild(burst);
+    setTimeout(()=>burst.remove(),950);
+    // Edge flash
+    canvasWrap.classList.remove('flash');
+    void canvasWrap.offsetWidth;
+    canvasWrap.classList.add('flash');
+    setTimeout(()=>canvasWrap.classList.remove('flash'),500);
+    // HUD pulse
+    statEl.classList.remove('pulse');
+    void statEl.offsetWidth;
+    statEl.classList.add('pulse');
+    setTimeout(()=>statEl.classList.remove('pulse'),420);
+    sfxPickup();
+  }
+
+  function triggerKnockback(fromX,fromZ){
+    const dx=bluey.position.x-fromX;
+    const dz=bluey.position.z-fromZ;
+    const d=Math.sqrt(dx*dx+dz*dz)||1;
+    knockback.active=true;
+    knockback.vx=(dx/d)*16;
+    knockback.vz=(dz/d)*16;
+    knockback.t=0.65;
+    vy=6.5;
+    grounded=false;
+    sfxBoing();
+  }
+
+  let firstInput=false;
+  function consumeHint(){
+    if(!firstInput){
+      firstInput=true;
+      hintEl.style.opacity='0';
+      hintEl.style.transform='translateY(-10px)';
+      setTimeout(()=>{hintEl.style.display='none'},500);
+    }
+    ensureAudioStarted();
+  }
+  const keyMap={'w':'w','a':'a','s':'s','d':'d','arrowup':'w','arrowleft':'a','arrowdown':'s','arrowright':'d',' ':'space','r':'r'};
+  function kd(e){
+    const k=keyMap[e.key.toLowerCase()];
+    if(!k)return;
+    keys[k]=true;
+    consumeHint();
+    if(k==='space'||['w','a','s','d'].includes(k))e.preventDefault();
+    if(k==='r')reset();
+  }
+  function ku(e){const k=keyMap[e.key.toLowerCase()];if(k)keys[k]=false}
+  window.addEventListener('keydown',kd);
+  window.addEventListener('keyup',ku);
+  canvas.addEventListener('click',()=>{canvas.focus();consumeHint()});
+  canvas.addEventListener('touchstart',()=>{canvas.focus();consumeHint()},{passive:true});
+  setTimeout(()=>canvas.focus(),200);
+
+  function reset(){
+    bluey.position.set(2,0,2);
+    foxY=0;vy=0;foxYaw=0;foxYawTarget=0;grounded=true;
+    knockback.active=false;knockback.vx=0;knockback.vz=0;knockback.t=0;
+    bluey.rotation.y=0;
+    bones.forEach(m=>{m.collected=false;m.mesh.visible=true});
+    collected=0;
+    boneCountEl.textContent=`0 / ${totalBones}`;
+    winFlash.classList.remove('show');
+    winFlash.textContent='¡Bien hecho, Bluey!';
+  }
+  bluey.position.set(2,0,2);
+
+  // ===== MARQUI AI =====
+  let marquiTarget=null;
+  let marquiMode='idle'; // 'walking' | 'cutting' | 'idle'
+  let marquiCutT=0;
+  let marquiYaw=0;
+  let marquiYawTarget=0;
+  let marquiWalkPhase=0;
+  let tuftSpawnT=4;
+
+  function pickMarquiTarget(){
+    const livingTufts=grassTufts.filter(t=>!t.cut&&!t.growing);
+    if(livingTufts.length>0&&Math.random()<0.8){
+      // Go cut a tuft — prefer closer ones for natural-looking behaviour
+      livingTufts.sort((a,b)=>{
+        const da=(a.x-marqui.group.position.x)**2+(a.z-marqui.group.position.z)**2;
+        const db=(b.x-marqui.group.position.x)**2+(b.z-marqui.group.position.z)**2;
+        return da-db;
+      });
+      // Pick from top 3 closest randomly so it feels alive
+      const pick=livingTufts[Math.floor(Math.random()*Math.min(3,livingTufts.length))];
+      marquiTarget={x:pick.x,z:pick.z,tuft:pick};
+    }else{
+      // Just wander somewhere
+      const ang=Math.random()*Math.PI*2;
+      const r=4+Math.random()*6;
+      let nx=marqui.group.position.x+Math.cos(ang)*r;
+      let nz=marqui.group.position.z+Math.sin(ang)*r;
+      const lim=halfW-2.5;
+      nx=Math.max(-lim,Math.min(lim,nx));
+      nz=Math.max(-lim,Math.min(lim,nz));
+      marquiTarget={x:nx,z:nz,tuft:null};
+    }
+    marquiMode='walking';
+  }
+
+  function avoidObstacle(fromX,fromZ,toX,toZ){
+    // Simple: if direct path is blocked, just walk anyway but slow down
+    // (Marqui is a casual gardener — collision is loose)
+    return {x:toX,z:toZ};
+  }
+
+  function updateMarqui(dt){
+    if(!marquiTarget)pickMarquiTarget();
+    const dx=marquiTarget.x-marqui.group.position.x;
+    const dz=marquiTarget.z-marqui.group.position.z;
+    const dist=Math.sqrt(dx*dx+dz*dz);
+
+    if(marquiMode==='walking'){
+      if(dist<0.7){
+        if(marquiTarget.tuft&&!marquiTarget.tuft.cut){
+          marquiMode='cutting';
+          marquiCutT=1.4;
+        }else{
+          marquiMode='idle';
+          setTimeout(()=>{if(marquiMode==='idle')pickMarquiTarget()},400+Math.random()*800);
+        }
+      }else{
+        const sp=1.7;
+        // Move toward target
+        const nx=marqui.group.position.x+(dx/dist)*sp*dt;
+        const nz=marqui.group.position.z+(dz/dist)*sp*dt;
+        // Soft-avoid: nudge away from obstacles
+        let pushX=0,pushZ=0;
+        for(const o of obstacles){
+          const odx=nx-o.x,odz=nz-o.z;
+          const od2=odx*odx+odz*odz;
+          const minD=o.r+0.5;
+          if(od2<minD*minD&&od2>0.01){
+            const od=Math.sqrt(od2);
+            const force=(minD-od)/minD;
+            pushX+=(odx/od)*force*1.2;
+            pushZ+=(odz/od)*force*1.2;
+          }
+        }
+        marqui.group.position.x=Math.max(-halfW+1.5,Math.min(halfW-1.5,nx+pushX*dt*sp));
+        marqui.group.position.z=Math.max(-halfW+1.5,Math.min(halfW-1.5,nz+pushZ*dt*sp));
+        marquiYawTarget=Math.atan2(dx,dz);
+        marquiWalkPhase+=dt*5;
+      }
+    }else if(marquiMode==='cutting'){
+      marquiCutT-=dt;
+      // Spin the disc fast while cutting
+      marqui.cuttingHead.rotation.y+=dt*25;
+      // Sweep the strimmer side-to-side for active feel
+      marqui.strimmer.rotation.y=0.18+Math.sin(performance.now()*0.012)*0.35;
+      if(marquiCutT<=0){
+        if(marquiTarget.tuft&&!marquiTarget.tuft.cut){
+          marquiTarget.tuft.cut=true;
+          // Shrink animation
+          marquiTarget.tuft.shrinkT=0.3;
+        }
+        marquiMode='idle';
+        setTimeout(()=>{if(marquiMode==='idle')pickMarquiTarget()},300+Math.random()*500);
+      }
+    }
+
+    // Smooth yaw
+    let dyaw=marquiYawTarget-marquiYaw;
+    while(dyaw>Math.PI)dyaw-=Math.PI*2;
+    while(dyaw<-Math.PI)dyaw+=Math.PI*2;
+    marquiYaw+=dyaw*Math.min(1,dt*6);
+    marqui.group.rotation.y=marquiYaw;
+
+    // Walk animation — legs swing, body bobs
+    if(marquiMode==='walking'){
+      const sw=Math.sin(marquiWalkPhase)*0.4;
+      marqui.legL.rotation.x=sw;
+      marqui.legR.rotation.x=-sw;
+      marqui.armL.rotation.x=-sw*0.6;
+      marqui.body.position.y=0.8+Math.abs(Math.sin(marquiWalkPhase*2))*0.04;
+    }else{
+      marqui.legL.rotation.x*=0.85;
+      marqui.legR.rotation.x*=0.85;
+      marqui.armL.rotation.x*=0.85;
+      marqui.body.position.y+=(0.8-marqui.body.position.y)*0.15;
+      // Idle disc spin (slow)
+      if(marquiMode!=='cutting')marqui.cuttingHead.rotation.y+=dt*3;
+    }
+  }
+
+  function updateTufts(dt){
+    // Animate growing and shrinking
+    for(let i=grassTufts.length-1;i>=0;i--){
+      const t=grassTufts[i];
+      if(t.growing){
+        t.growT+=dt*1.4;
+        const s=Math.min(1,t.growT);
+        const e=s<0.5?2*s*s:1-Math.pow(-2*s+2,2)/2; // ease-in-out
+        t.mesh.scale.set(e,e,e);
+        if(s>=1){t.growing=false;t.growT=1}
+      }
+      if(t.cut){
+        t.shrinkT-=dt;
+        const s=Math.max(0,t.shrinkT/0.3);
+        t.mesh.scale.set(s,s*0.3,s);
+        if(t.shrinkT<=0){
+          scene.remove(t.mesh);
+          grassTufts.splice(i,1);
+        }
+      }
+    }
+    // Periodically spawn new tufts
+    tuftSpawnT-=dt;
+    if(tuftSpawnT<=0&&grassTufts.filter(t=>!t.cut).length<16){
+      tuftSpawnT=2.5+Math.random()*3;
+      let x,z,ok=false,tries=0;
+      while(!ok&&tries<20){
+        x=(Math.random()-0.5)*halfW*1.75;
+        z=(Math.random()-0.5)*halfW*1.75;
+        ok=farFromObstacles(x,z,0.9)&&farFromHouse(x,z,3.5)&&farFromCenter(x,z,1.5);
+        // Also keep some distance from Marqui so he doesn't insta-cut spawn
+        const mdx=x-marqui.group.position.x,mdz=z-marqui.group.position.z;
+        if(mdx*mdx+mdz*mdz<6)ok=false;
+        tries++;
+      }
+      if(ok)createGrassTuft(x,z);
+    }
+  }
+
+  // ===== GAME LOOP =====
+  const targetCam=new THREE.Vector3();
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(0.05,(now-last)/1000);
+    last=now;
+
+    // Knockback overrides player input
+    if(knockback.active){
+      bluey.position.x+=knockback.vx*dt;
+      bluey.position.z+=knockback.vz*dt;
+      // Clamp to world boundary
+      const lim=halfW-1.2;
+      bluey.position.x=Math.max(-lim,Math.min(lim,bluey.position.x));
+      bluey.position.z=Math.max(-lim,Math.min(lim,bluey.position.z));
+      // Friction
+      const decay=Math.pow(0.18,dt);
+      knockback.vx*=decay;
+      knockback.vz*=decay;
+      // Tumble spin
+      bluey.rotation.y+=dt*14;
+      foxYaw=bluey.rotation.y;
+      knockback.t-=dt;
+      // Jump physics applied below (we set vy in triggerKnockback)
+      if(knockback.t<=0&&foxY<=0.01){
+        knockback.active=false;
+        knockback.vx=0;knockback.vz=0;
+        foxYawTarget=foxYaw;
+      }
+      // Apply gravity for the upward pop
+      if(!grounded){
+        vy-=24*dt;
+        foxY+=vy*dt;
+        if(foxY<=0){foxY=0;vy=0;grounded=true}
+      }
+      blueyBody.position.y=0.72+foxY;
+      // Tucked legs
+      lFL.rotation.z=0.5;lFR.rotation.z=0.5;
+      lBL.rotation.z=-0.5;lBR.rotation.z=-0.5;
+      // Slightly squashed
+      const sy=1+Math.max(-0.15,Math.min(0.15,vy*0.02));
+      blueyBody.scale.y=sy;
+      blueyBody.scale.x=blueyBody.scale.z=1/Math.sqrt(sy);
+      const ss=Math.max(0.3,1-foxY*0.13);
+      shadow.scale.set(ss,ss,ss);
+      shadow.material.opacity=0.28*ss;
+      // Skip rest of player update, jump to systems
+      if(hoist.userData.spinning)hoist.userData.spinning.rotation.y+=dt*0.3;
+      updateMarqui(dt);
+      updateTufts(dt);
+      targetCam.copy(bluey.position).add(camOffset);
+      camera.position.lerp(targetCam,Math.min(1,dt*4.5));
+      camera.lookAt(bluey.position.x,0.5,bluey.position.z);
+      renderer.render(scene,camera);
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    // Movement vector relative to camera
+    const mv=new THREE.Vector3();
+    if(keys.w)mv.add(camDir);
+    if(keys.s)mv.sub(camDir);
+    if(keys.d)mv.add(camRight);
+    if(keys.a)mv.sub(camRight);
+    mv.y=0;
+    const moving=mv.lengthSq()>0.01;
+    if(moving){
+      mv.normalize();
+      foxYawTarget=Math.atan2(-mv.z,mv.x);
+      speed=Math.min(speed+dt*10,6.5);
+    }else{
+      speed=Math.max(speed-dt*12,0);
+    }
+
+    // Smooth yaw
+    let dy=foxYawTarget-foxYaw;
+    while(dy>Math.PI)dy-=Math.PI*2;
+    while(dy<-Math.PI)dy+=Math.PI*2;
+    foxYaw+=dy*Math.min(1,dt*14);
+    bluey.rotation.y=foxYaw;
+
+    // Apply movement with collision
+    if(speed>0.05){
+      const nx=bluey.position.x+mv.x*speed*dt;
+      const nz=bluey.position.z+mv.z*speed*dt;
+      const lim=halfW-1.2;
+      const cx=Math.max(-lim,Math.min(lim,nx));
+      const cz=Math.max(-lim,Math.min(lim,nz));
+      if(foxY>0.8){
+        bluey.position.x=cx;bluey.position.z=cz;
+      }else{
+        let bx=false,bz=false;
+        for(const o of obstacles){
+          if((cx-o.x)**2+(bluey.position.z-o.z)**2<o.r*o.r)bx=true;
+          if((bluey.position.x-o.x)**2+(cz-o.z)**2<o.r*o.r)bz=true;
+        }
+        if(!bx)bluey.position.x=cx;
+        if(!bz)bluey.position.z=cz;
+      }
+    }
+
+    // Jump
+    if(keys.space&&grounded){vy=8.2;grounded=false}
+    if(!grounded){
+      vy-=24*dt;
+      foxY+=vy*dt;
+      if(foxY<=0){foxY=0;vy=0;grounded=true}
+    }
+    const bob=grounded?Math.abs(Math.sin(walkPhase*2))*0.05*Math.min(1,speed/4):0;
+    blueyBody.position.y=0.72+foxY+bob;
+
+    // Walk anim
+    if(grounded){
+      walkPhase+=dt*speed*1.9;
+      const ls=Math.sin(walkPhase)*0.55*Math.min(1,speed/4);
+      lFL.rotation.z=ls;lBR.rotation.z=ls;
+      lFR.rotation.z=-ls;lBL.rotation.z=-ls;
+      tail.rotation.y=Math.sin(walkPhase*1.5)*0.4;
+      head.rotation.y=Math.sin(walkPhase)*0.05;
+      head.rotation.z=Math.sin(walkPhase*0.7)*0.02;
+      blueyBody.scale.set(1,1,1);
+    }else{
+      lFL.rotation.z=0.4;lFR.rotation.z=0.4;
+      lBL.rotation.z=-0.4;lBR.rotation.z=-0.4;
+      tail.rotation.y=0;head.rotation.y=0;
+      const sy=1+Math.max(-0.2,Math.min(0.2,vy*0.025));
+      blueyBody.scale.y=sy;
+      blueyBody.scale.x=blueyBody.scale.z=1/Math.sqrt(sy);
+    }
+    // Shadow
+    const ss=Math.max(0.32,1-foxY*0.13);
+    shadow.scale.set(ss,ss,ss);
+    shadow.material.opacity=0.28*ss;
+
+    // Hoist spin (slow)
+    if(hoist.userData.spinning){
+      hoist.userData.spinning.rotation.y+=dt*0.3;
+    }
+
+    // Bone collection
+    for(const m of bones){
+      if(!m.collected){
+        const dx=bluey.position.x-m.x,dz=bluey.position.z-m.z;
+        if(dx*dx+dz*dz<0.8*0.8&&foxY<1.0){
+          m.collected=true;
+          m.mesh.visible=false;
+          collected++;
+          boneCountEl.textContent=`${collected} / ${totalBones}`;
+          pickupEffect(m.x,m.mesh.position.y+0.4,m.z);
+          if(collected===totalBones){
+            winFlash.textContent='¡Bien hecho, Bluey!';
+            winFlash.classList.add('show');
+          }
+        }else{
+          m.phase+=dt*2;
+          m.mesh.position.y=0.4+Math.sin(m.phase)*0.1;
+          m.mesh.rotation.y+=dt*0.8;
+        }
+      }
+    }
+
+    // Marqui collision — boing!
+    if(!knockback.active){
+      const mdx=bluey.position.x-marqui.group.position.x;
+      const mdz=bluey.position.z-marqui.group.position.z;
+      const md2=mdx*mdx+mdz*mdz;
+      if(md2<1.25*1.25&&foxY<1.3){
+        triggerKnockback(marqui.group.position.x,marqui.group.position.z);
+      }
+    }
+
+    // Marqui & grass tufts
+    updateMarqui(dt);
+    updateTufts(dt);
+
+    // Camera follow
+    targetCam.copy(bluey.position).add(camOffset);
+    camera.position.lerp(targetCam,Math.min(1,dt*4.5));
+    camera.lookAt(bluey.position.x,0.5,bluey.position.z);
+
+    renderer.render(scene,camera);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
