@@ -1110,22 +1110,48 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   scene.add(marqui.group);
 
   // ===== GRASS TUFTS (briznas) =====
+  // Tiny flower colors for the "flowery" tuft variant — Lambert to match the rest of the world.
+  const flowerMats=[
+    new THREE.MeshLambertMaterial({color:0xFFEC5C}),
+    new THREE.MeshLambertMaterial({color:0xFF9D7C}),
+    new THREE.MeshLambertMaterial({color:0xF4B2C8}),
+    new THREE.MeshLambertMaterial({color:0xC097E0}),
+    new THREE.MeshLambertMaterial({color:0xFFFFFF})
+  ];
+
   const grassTufts=[];
   function createGrassTuft(x,z){
     const t=new THREE.Group();
-    const blades=4+Math.floor(Math.random()*3);
+    const variant=Math.random();
+    const tall=variant>0.78;                       // ~22% chance: 1-2 extra-tall blades
+    const flowery=variant>0.40&&variant<0.55;      // ~15% chance: a little flower
+    const blades=5+Math.floor(Math.random()*4);    // 5-8 blades per tuft
+    const radius=0.42+Math.random()*0.16;          // wider footprint than before
     for(let i=0;i<blades;i++){
-      const h=0.3+Math.random()*0.25;
+      const isTallBlade=tall&&i<2;
+      const h=isTallBlade?(1.0+Math.random()*0.5):(0.5+Math.random()*0.45);
+      const w=0.04+Math.random()*0.04;
       const mat=Math.random()<0.5?M.tuftG:M.tuftGL;
-      const blade=box(0.05,h,0.05,mat);
+      const blade=box(w,h,w,mat);
       blade.position.set(
-        (Math.random()-0.5)*0.35,
+        (Math.random()-0.5)*radius,
         h/2,
-        (Math.random()-0.5)*0.35
+        (Math.random()-0.5)*radius
       );
-      blade.rotation.z=(Math.random()-0.5)*0.25;
-      blade.rotation.x=(Math.random()-0.5)*0.15;
+      blade.rotation.z=(Math.random()-0.5)*0.35;
+      blade.rotation.x=(Math.random()-0.5)*0.25;
       t.add(blade);
+    }
+    if(flowery){
+      const stemH=0.7+Math.random()*0.4;
+      const sx=(Math.random()-0.5)*0.25,sz=(Math.random()-0.5)*0.25;
+      const stem=box(0.025,stemH,0.025,M.tuftGL);
+      stem.position.set(sx,stemH/2,sz);
+      t.add(stem);
+      const fmat=flowerMats[Math.floor(Math.random()*flowerMats.length)];
+      const petal=box(0.14,0.08,0.14,fmat);
+      petal.position.set(sx,stemH+0.02,sz);
+      t.add(petal);
     }
     t.position.set(x,0,z);
     t.scale.set(0.1,0.1,0.1);
@@ -1133,6 +1159,23 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     const tuft={x,z,mesh:t,cut:false,growing:true,growT:0};
     grassTufts.push(tuft);
     return tuft;
+  }
+
+  // When Marqui finishes cutting, give every blade an initial velocity + spin
+  // so they fly off, fall to the ground and fade out instead of just shrinking.
+  function startTuftCutAnim(tuft){
+    tuft.flyT=0;
+    tuft.flyDur=0.95;
+    for(const blade of tuft.mesh.children){
+      blade.userData.cutVel={
+        vx:(Math.random()-0.5)*3,
+        vy:1.8+Math.random()*2.4,
+        vz:(Math.random()-0.5)*3,
+        rotX:(Math.random()-0.5)*12,
+        rotY:(Math.random()-0.5)*6,
+        rotZ:(Math.random()-0.5)*12
+      };
+    }
   }
 
   // Spawn initial tufts
@@ -1679,8 +1722,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       if(marquiCutT<=0){
         if(marquiTarget.tuft&&!marquiTarget.tuft.cut){
           marquiTarget.tuft.cut=true;
-          // Shrink animation
-          marquiTarget.tuft.shrinkT=0.3;
+          startTuftCutAnim(marquiTarget.tuft);
         }
         marquiMode='idle';
         setTimeout(()=>{if(marquiMode==='idle')pickMarquiTarget()},300+Math.random()*500);
@@ -1713,21 +1755,44 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   }
 
   function updateTufts(dt){
-    // Animate growing and shrinking
+    // Animate growing and the cut "blades fly off" effect
     for(let i=grassTufts.length-1;i>=0;i--){
       const t=grassTufts[i];
       if(t.growing){
-        t.growT+=dt*1.4;
+        t.growT+=dt*0.4;  // ~2.5s to reach full height
         const s=Math.min(1,t.growT);
         const e=s<0.5?2*s*s:1-Math.pow(-2*s+2,2)/2; // ease-in-out
         t.mesh.scale.set(e,e,e);
         if(s>=1){t.growing=false;t.growT=1}
       }
       if(t.cut){
-        t.shrinkT-=dt;
-        const s=Math.max(0,t.shrinkT/0.3);
-        t.mesh.scale.set(s,s*0.3,s);
-        if(t.shrinkT<=0){
+        t.flyT+=dt;
+        for(const blade of t.mesh.children){
+          const u=blade.userData.cutVel;
+          if(!u)continue;
+          blade.position.x+=u.vx*dt;
+          blade.position.y+=u.vy*dt;
+          blade.position.z+=u.vz*dt;
+          u.vy-=14*dt;
+          blade.rotation.x+=u.rotX*dt;
+          blade.rotation.y+=u.rotY*dt;
+          blade.rotation.z+=u.rotZ*dt;
+          if(blade.position.y<0.04){
+            blade.position.y=0.04;
+            u.vy=0;
+            u.vx*=0.5;
+            u.vz*=0.5;
+            u.rotX*=0.7;
+            u.rotZ*=0.7;
+          }
+        }
+        if(t.flyT>t.flyDur-0.35){
+          const fade=Math.max(0,(t.flyDur-t.flyT)/0.35);
+          for(const blade of t.mesh.children){
+            blade.scale.set(fade,fade,fade);
+          }
+        }
+        if(t.flyT>=t.flyDur){
           scene.remove(t.mesh);
           grassTufts.splice(i,1);
         }
