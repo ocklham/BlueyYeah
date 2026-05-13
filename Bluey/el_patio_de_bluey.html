@@ -131,8 +131,11 @@ h1 .bluey-mark span:nth-child(5){color:#6FC0DA;animation-delay:0.43s}
 .hud-music-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--bluey-dark);cursor:pointer;border:none;box-shadow:0 1px 3px rgba(42,59,77,0.25)}
 .hud-music-slider.disabled{opacity:0.4;pointer-events:none}
 
-.loader{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(180deg,#BFE4F0 0%,#D9EDF2 50%,#E8F0DA 100%);z-index:5;transition:opacity 0.5s ease-out;font-family:'Fredoka',sans-serif;pointer-events:none}
-.loader.hidden{opacity:0}
+.loader{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(180deg,#BFE4F0 0%,#D9EDF2 50%,#E8F0DA 100%);z-index:5;transition:opacity 0.6s ease-out,background 0.6s ease-out,backdrop-filter 0.6s ease-out;font-family:'Fredoka',sans-serif;pointer-events:none}
+.loader.ready{background:rgba(20,30,40,0.32);backdrop-filter:blur(1.5px);pointer-events:auto;cursor:pointer}
+.loader.hidden{opacity:0;pointer-events:none}
+.loader-loading{display:flex;flex-direction:column;align-items:center;gap:18px;transition:opacity 0.35s ease-out,transform 0.35s ease-out}
+.loader.ready .loader-loading{opacity:0;transform:scale(0.7);position:absolute;pointer-events:none}
 .loader-paws{display:flex;gap:14px}
 .loader-paw{width:38px;height:38px;animation:loaderPawBounce 1.0s ease-in-out infinite}
 .loader-paw:nth-child(2){animation-delay:0.15s}
@@ -140,6 +143,13 @@ h1 .bluey-mark span:nth-child(5){color:#6FC0DA;animation-delay:0.43s}
 .loader-paw svg{width:100%;height:100%;fill:var(--bluey-dark);opacity:0.85}
 @keyframes loaderPawBounce{0%,100%{transform:scale(0.7) translateY(0);opacity:0.35}50%{transform:scale(1.0) translateY(-6px);opacity:1}}
 .loader-text{font-size:18px;color:var(--bluey-dark);font-weight:500;letter-spacing:0.05em}
+.loader-start{opacity:0;transform:translateY(16px) scale(0.85);transition:opacity 0.5s ease-out 0.2s,transform 0.5s ease-out 0.2s;display:flex;flex-direction:column;align-items:center;gap:12px;position:absolute;pointer-events:none}
+.loader.ready .loader-start{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.loader-btn{background:var(--bluey-cream);color:var(--ink);font-family:'Fredoka',sans-serif;font-weight:600;font-size:26px;letter-spacing:0.02em;border:2px solid rgba(42,59,77,0.12);border-radius:18px;padding:14px 44px;cursor:pointer;box-shadow:0 10px 32px rgba(42,59,77,0.28);animation:loaderBtnPulse 1.8s ease-in-out infinite}
+.loader-btn:hover{filter:brightness(1.05)}
+.loader-btn:active{transform:scale(0.97)}
+@keyframes loaderBtnPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.loader-sub{font-size:13px;color:#fff;font-weight:500;text-shadow:0 1px 4px rgba(0,0,0,0.5);letter-spacing:0.04em}
 .pickup-burst{position:absolute;pointer-events:none;font-family:'Fredoka',sans-serif;font-weight:600;font-size:24px;color:#D8A045;text-shadow:0 2px 4px rgba(0,0,0,0.15);animation:pickupFloat 0.9s ease-out forwards}
 @keyframes pickupFloat{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}15%{opacity:1;transform:translate(-50%,-80%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-180%) scale(0.9)}}
 .canvas-wrap.flash::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,transparent 40%,rgba(255,210,100,0.25) 100%);pointer-events:none;animation:edgeFlash 0.5s ease-out}
@@ -234,12 +244,18 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     <div class="canvas-wrap">
       <canvas id="game" tabindex="0"></canvas>
       <div class="loader" id="loader">
-        <div class="loader-paws">
-          <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
-          <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
-          <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+        <div class="loader-loading">
+          <div class="loader-paws">
+            <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+            <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+            <div class="loader-paw"><svg viewBox="0 0 100 100"><circle cx="50" cy="68" r="22"/><circle cx="22" cy="42" r="11"/><circle cx="42" cy="24" r="10"/><circle cx="68" cy="24" r="10"/><circle cx="82" cy="42" r="11"/></svg></div>
+          </div>
+          <div class="loader-text">Cargando el patio…</div>
         </div>
-        <div class="loader-text">Cargando el patio…</div>
+        <div class="loader-start">
+          <button class="loader-btn" type="button">¡A jugar!</button>
+          <div class="loader-sub">música, ladridos y desbrozadora</div>
+        </div>
       </div>
       <div class="hud-tag hud-hint" id="hud-hint">Haz clic para jugar</div>
       <div class="hud-tag hud-stat" id="hud-stat">
@@ -1626,6 +1642,13 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       setTimeout(()=>{hintEl.style.display='none'},500);
     }
     ensureAudioStarted();
+    // Same gesture also dismisses the "¡A jugar!" overlay so audio + UI sync
+    const ld=document.getElementById('loader');
+    if(ld&&ld.classList.contains('ready')){
+      ld.classList.remove('ready');
+      ld.classList.add('hidden');
+      setTimeout(()=>{ld.style.display='none'},700);
+    }
   }
   const keyMap={'w':'w','a':'a','s':'s','d':'d','arrowup':'w','arrowleft':'a','arrowdown':'s','arrowright':'d',' ':'space','r':'r'};
   function kd(e){
@@ -2134,15 +2157,25 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     renderer.render(scene,camera);
     if(firstRender){
       firstRender=false;
+      // Don't hide the loader yet — switch it to the "ready" state which dims
+      // the overlay, reveals the live scene behind, and shows the "¡A jugar!"
+      // button. The first user click is what unlocks the audio anyway, so we
+      // turn that click into the dramatic start moment.
       const ld=document.getElementById('loader');
-      if(ld){
-        setTimeout(()=>ld.classList.add('hidden'),150);
-        setTimeout(()=>{ld.style.display='none'},800);
-      }
+      if(ld)setTimeout(()=>ld.classList.add('ready'),120);
     }
     requestAnimationFrame(loop);
   }
   let firstRender=true;
+  // Any click on the loader (its own button included) dismisses it and triggers
+  // the same consumeHint() path the canvas click used to take, so audio starts
+  // in the same gesture.
+  const loaderEl=document.getElementById('loader');
+  if(loaderEl){
+    loaderEl.addEventListener('click',()=>{
+      if(loaderEl.classList.contains('ready'))consumeHint();
+    });
+  }
   requestAnimationFrame(loop);
 })();
 </script>
