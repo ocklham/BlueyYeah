@@ -757,7 +757,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.85});
-    crowPerches.push({x,z,h:h+1.9});  // top eucalyptus leaf is around h+1.65
+    crowPerches.push({x,z,h:h+2.4});  // top eucalyptus leaf is around h+1.65; +0.75 keeps the body clearly above
   }
   function jacarandaTree(x,z){
     const t=new THREE.Group();
@@ -781,7 +781,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.95});
-    crowPerches.push({x,z,h:h+2.4});  // jacaranda crown reaches ~h+2.1
+    crowPerches.push({x,z,h:h+2.9});  // jacaranda crown reaches ~h+2.1; +0.8 keeps the body clearly above
   }
   function regularTree(x,z){
     const t=new THREE.Group();
@@ -799,7 +799,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.9});
-    crowPerches.push({x,z,h:h+2.2});  // generic crown reaches ~h+1.9
+    crowPerches.push({x,z,h:h+2.7});  // generic crown reaches ~h+1.9; +0.8 keeps the body clearly above
   }
 
   function rock(x,z){
@@ -1248,7 +1248,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const crowTo=new THREE.Vector3(0,7,0);
   let crowFlightT=0,crowFlightDur=3,crowPerchT=0,crowOnMarqui=false,crowWingPhase=0;
   let crowLookYaw=0,crowLookT=0;  // for "looking around" while perched
-  const CROW_MARQUI_Y=3.2;        // perch height on top of Marqui's head + hair
+  const CROW_MARQUI_Y=3.7;        // perch height clearly on top of Marqui's head + hair
   function pickCrowTarget(){
     // 15% chance to land on Marqui's head
     if(Math.random()<0.15){
