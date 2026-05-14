@@ -738,6 +738,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   obstacles.push({x:HOX,z:HOZ,r:0.4});
 
   // ===== TREES =====
+  // Spots where the crow may land. Each tree pushes its top here on creation.
+  const crowPerches=[];
   function gumTree(x,z){
     const t=new THREE.Group();
     const h=3.6+Math.random()*1.4;
@@ -755,6 +757,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.85});
+    crowPerches.push({x,z,h:h+1.5});
   }
   function jacarandaTree(x,z){
     const t=new THREE.Group();
@@ -778,6 +781,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.95});
+    crowPerches.push({x,z,h:h+1.6});
   }
   function regularTree(x,z){
     const t=new THREE.Group();
@@ -795,6 +799,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.9});
+    crowPerches.push({x,z,h:h+1.5});
   }
 
   function rock(x,z){
@@ -1204,6 +1209,117 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   bingo.group.rotation.y=Math.PI*0.7;
   scene.add(bingo.group);
   let bingoNearT=0,bingoZzzT=2,bingoAwakeT=0,bingoNoticed=false;
+
+  // ===== CROW =====
+  // Glides over the yard, perches on trees, and ~15% of the time lands on
+  // Marqui's head to set off the anger meter.
+  const beakMat=new THREE.MeshLambertMaterial({color:0xE8A845});
+  function createCrow(){
+    const g=new THREE.Group();
+    g.add(box(0.5,0.26,0.34,M.bk));        // body
+    const head=box(0.24,0.22,0.22,M.bk);
+    head.position.set(0.32,0.12,0);g.add(head);
+    const beak=box(0.14,0.07,0.09,beakMat);
+    beak.position.set(0.46,0.10,0);g.add(beak);
+    const eyeL=box(0.05,0.06,0.05,M.wh);
+    eyeL.position.set(0.36,0.17,0.10);g.add(eyeL);
+    const eyeR=eyeL.clone();eyeR.position.z=-0.10;g.add(eyeR);
+    const pupilL=box(0.025,0.03,0.025,M.bk);
+    pupilL.position.set(0.39,0.17,0.115);g.add(pupilL);
+    const pupilR=pupilL.clone();pupilR.position.z=-0.115;g.add(pupilR);
+    // Wings — animated via rotation on group origin's far edge
+    const wingL=new THREE.Group();
+    const wingLM=box(0.05,0.05,0.36,M.bk);
+    wingLM.position.set(0,0,0.18);wingL.add(wingLM);
+    wingL.position.set(-0.04,0.08,0.16);g.add(wingL);
+    const wingR=new THREE.Group();
+    const wingRM=box(0.05,0.05,0.36,M.bk);
+    wingRM.position.set(0,0,-0.18);wingR.add(wingRM);
+    wingR.position.set(-0.04,0.08,-0.16);g.add(wingR);
+    // Tail
+    const tail=box(0.2,0.04,0.18,M.bk);
+    tail.position.set(-0.32,0.02,0);g.add(tail);
+    return {group:g,wingL,wingR};
+  }
+  const crow=createCrow();
+  scene.add(crow.group);
+  let crowMode='flying';  // 'flying' | 'perched'
+  const crowFrom=new THREE.Vector3(0,7,0);
+  const crowTo=new THREE.Vector3(0,7,0);
+  let crowFlightT=0,crowFlightDur=3,crowPerchT=0,crowOnMarqui=false,crowWingPhase=0;
+  function pickCrowTarget(){
+    // 15% chance to land on Marqui's head
+    if(Math.random()<0.15){
+      crowTo.set(marqui.group.position.x,2.7,marqui.group.position.z);
+      crowOnMarqui=true;
+    }else if(crowPerches.length){
+      const p=crowPerches[Math.floor(Math.random()*crowPerches.length)];
+      crowTo.set(p.x,p.h,p.z);
+      crowOnMarqui=false;
+    }else{
+      // Fallback: random point in the sky
+      crowTo.set((Math.random()-0.5)*halfW*1.5,5+Math.random()*2,(Math.random()-0.5)*halfW*1.5);
+      crowOnMarqui=false;
+    }
+    crowFlightDur=2.4+Math.random()*1.8;
+    crowFlightT=0;
+  }
+  // Initial spawn: arrive at a tree from off-screen
+  crowFrom.set(halfW+4,9,halfW+4);
+  crow.group.position.copy(crowFrom);
+  pickCrowTarget();
+
+  function updateCrow(dt){
+    crowWingPhase+=dt*(crowMode==='flying'?16:3);
+    if(crowMode==='flying'){
+      crowFlightT+=dt;
+      const k=Math.min(1,crowFlightT/crowFlightDur);
+      // Smoothstep + arc on Y
+      const s=k*k*(3-2*k);
+      crow.group.position.x=crowFrom.x+(crowTo.x-crowFrom.x)*s;
+      crow.group.position.z=crowFrom.z+(crowTo.z-crowFrom.z)*s;
+      const baseY=crowFrom.y+(crowTo.y-crowFrom.y)*s;
+      crow.group.position.y=baseY+Math.sin(k*Math.PI)*2.2;
+      // Face direction of travel
+      const dx=crowTo.x-crowFrom.x,dz=crowTo.z-crowFrom.z;
+      if(dx*dx+dz*dz>0.01)crow.group.rotation.y=Math.atan2(dx,dz);
+      // Flap
+      const flap=Math.sin(crowWingPhase)*0.9;
+      crow.wingL.rotation.x=flap;
+      crow.wingR.rotation.x=-flap;
+      if(k>=1){
+        crowMode='perched';
+        crowPerchT=3+Math.random()*4;
+        if(crowOnMarqui){
+          // Marqui rage spike: top up the anger timer regardless of hit count
+          marquiAngryT=Math.max(marquiAngryT,8);
+          recentMarquiHits=Math.max(recentMarquiHits,3);
+          marquiHitDecayT=20;
+          floatMessage('¡Eh, fuera de aquí!',marqui.group.position.x,3.4,marqui.group.position.z,'#8E2F22');
+          showToast('🐦 Un cuervo se posó en Marqui — está furioso');
+        }
+      }
+    }else{
+      // Perched: stick to target (Marqui moves; trees don't)
+      if(crowOnMarqui){
+        crow.group.position.x=marqui.group.position.x;
+        crow.group.position.z=marqui.group.position.z;
+        crow.group.position.y=2.7;
+      }
+      // Wings rest
+      crow.wingL.rotation.x*=Math.pow(0.4,dt);
+      crow.wingR.rotation.x*=Math.pow(0.4,dt);
+      // Little head bobs by jittering yaw
+      crow.group.rotation.y+=Math.sin(performance.now()*0.004)*dt*0.6;
+      crowPerchT-=dt;
+      if(crowPerchT<=0){
+        // Take off
+        crowFrom.copy(crow.group.position);
+        pickCrowTarget();
+        crowMode='flying';
+      }
+    }
+  }
 
   // ===== GRASS TUFTS (briznas) =====
   // Tiny flower colors for the "flowery" tuft variant — Lambert to match the rest of the world.
@@ -2229,6 +2345,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       updateMarqui(dt);
       updateTufts(dt);
       updateBingo(dt);
+      updateCrow(dt);
       targetCam.copy(bluey.position).add(camOffset).add(panOffset);
       // Knockback flings Bluey at 16 u/s; ease the chase so the camera doesn't jolt
       camera.position.lerp(targetCam,Math.min(1,dt*2.0));
@@ -2404,6 +2521,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     updateMarqui(dt);
     updateTufts(dt);
     updateBingo(dt);
+    updateCrow(dt);
 
     // Camera follow
     targetCam.copy(bluey.position).add(camOffset).add(panOffset);
