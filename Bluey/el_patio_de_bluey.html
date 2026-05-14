@@ -36,10 +36,16 @@ html,body{font-family:'Nunito',sans-serif;color:var(--ink);overflow-x:hidden;lin
 html{background:var(--paper)}
 body{min-height:100vh;position:relative;background:transparent}
 
-.sky-bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,var(--sky-1) 0%,var(--sky-2) 45%,var(--paper) 78%,var(--paper) 100%);overflow:hidden}
-.sun{position:absolute;top:48px;right:8%;width:110px;height:110px;animation:sunPulse 5s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(255,207,92,0.45))}
+.sky-bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,var(--sky-1) 0%,var(--sky-2) 45%,var(--paper) 78%,var(--paper) 100%);overflow:hidden;transition:background 1.2s ease}
+body.night .sky-bg{background:linear-gradient(180deg,#0E1A3A 0%,#1A2548 55%,#2C2E45 100%)}
+.sun{position:absolute;top:48px;right:8%;width:110px;height:110px;animation:sunPulse 5s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(255,207,92,0.45));transition:opacity 0.8s ease}
 .sun .eye{transform-box:fill-box;transform-origin:center;animation:sunBlink 7s ease-in-out infinite}
 .sun .eye-r{animation-delay:0.05s}
+body.night .sun{opacity:0;pointer-events:none}
+.moon{position:absolute;top:54px;right:9%;width:90px;height:90px;opacity:0;filter:drop-shadow(0 0 22px rgba(220,230,255,0.55));transition:opacity 0.8s ease;pointer-events:none}
+body.night .moon{opacity:1}
+.sun.sun-wink .eye-l,.sun.sun-sleepy .eye{animation:none;transform:scaleY(0.12)}
+.sun.sun-surprised .eye{animation:none;transform:scale(1.5)}
 @keyframes sunPulse{0%,100%{transform:scale(1);filter:brightness(1) drop-shadow(0 0 28px rgba(255,207,92,0.45))}50%{transform:scale(1.06);filter:brightness(1.08) drop-shadow(0 0 36px rgba(255,207,92,0.55))}}
 @keyframes sunBlink{0%,92%,100%{transform:scaleY(1)}94%{transform:scaleY(0.1)}96%{transform:scaleY(1)}}
 .cloud{position:absolute;opacity:0.94;filter:drop-shadow(0 4px 8px rgba(94,134,160,0.08))}
@@ -197,6 +203,22 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
 <body>
 
 <div class="sky-bg">
+  <svg class="moon" viewBox="0 0 120 120" aria-hidden="true">
+    <defs>
+      <radialGradient id="moon-grad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#F4F6FF"/>
+        <stop offset="58%" stop-color="#E0E6FA"/>
+        <stop offset="78%" stop-color="#C8D2EA"/>
+        <stop offset="100%" stop-color="#C8D2EA" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="60" cy="60" r="48" fill="url(#moon-grad)"/>
+    <ellipse cx="48" cy="58" rx="2.5" ry="4" fill="#2A3B4D"/>
+    <ellipse cx="72" cy="58" rx="2.5" ry="4" fill="#2A3B4D"/>
+    <path d="M 48 72 Q 60 78 72 72" stroke="#2A3B4D" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="78" cy="42" r="3" fill="#A8B5D8" opacity="0.6"/>
+    <circle cx="40" cy="76" r="2" fill="#A8B5D8" opacity="0.6"/>
+  </svg>
   <svg class="sun" viewBox="0 0 120 120" aria-hidden="true">
     <defs>
       <radialGradient id="sun-grad" cx="50%" cy="50%" r="50%">
@@ -265,7 +287,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M7 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M9 9c1 1 2 2 3 2s2-1 3-2"/><path d="M9 15c1-1 2-2 3-2s2 1 3 2"/><path d="M12 11v2"/></svg>
         <span id="bone-count">0 / 0</span>
       </div>
-      <div class="hud-tip"><kbd>WASD</kbd>·<kbd>Espacio</kbd>·<kbd>R</kbd>·<kbd>E</kbd>·<kbd>Z</kbd>·<kbd>C</kbd> · arrastrar/rueda cámara</div>
+      <div class="hud-tip"><kbd>WASD</kbd>·<kbd>Espacio</kbd>·<kbd>R</kbd>·<kbd>E</kbd>·<kbd>Z</kbd>·<kbd>C</kbd>·<kbd>N</kbd> · arrastrar/rueda cámara</div>
       <input type="range" class="hud-music-slider" id="music-slider" min="0" max="100" value="55" aria-label="Volumen de la música" title="Volumen de la música">
       <button class="hud-music" id="music-btn" aria-label="Activar o silenciar música">
         <svg id="music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -351,15 +373,22 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   window.addEventListener('resize',resize);
   if(window.ResizeObserver){new ResizeObserver(resize).observe(canvas)}
 
-  // Lighting — warm Brisbane afternoon
-  scene.add(new THREE.HemisphereLight(0xFFF4DC,0x6A8A3A,0.6));
+  // Lighting — warm Brisbane afternoon; intensities are eased toward night-time
+  // values when nightT goes to 1 (see updateNight below).
+  const hemiLight=new THREE.HemisphereLight(0xFFF4DC,0x6A8A3A,0.6);
+  scene.add(hemiLight);
   const sun=new THREE.DirectionalLight(0xFFE8B8,0.95);
   sun.position.set(35,55,18);
   scene.add(sun);
   const fill=new THREE.DirectionalLight(0xBFD6FF,0.25);
   fill.position.set(-30,20,-20);
   scene.add(fill);
-  scene.add(new THREE.AmbientLight(0xFFFFFF,0.15));
+  const ambient=new THREE.AmbientLight(0xFFFFFF,0.15);
+  scene.add(ambient);
+  // Day vs night palette for the canvas sky
+  const DAY_BG=new THREE.Color(0xBFE4F0);
+  const NIGHT_BG=new THREE.Color(0x14254A);
+  const tmpBg=new THREE.Color();
 
   // Materials
   const M={
@@ -936,7 +965,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     });
     b.position.set(x,0.4,z);
     scene.add(b);
-    bones.push({x,z,mesh:b,collected:false,phase:Math.random()*Math.PI*2});
+    bones.push({x,z,_spawnX:x,_spawnZ:z,mesh:b,collected:false,phase:Math.random()*Math.PI*2,stolenBy:null,falling:false,fallVy:0});
   }
 
   // ===== MARQUI (the gardener) =====
@@ -1209,6 +1238,14 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   bingo.group.rotation.y=Math.PI*0.7;
   scene.add(bingo.group);
   let bingoNearT=0,bingoZzzT=2,bingoAwakeT=0,bingoNoticed=false;
+  let bingoChaseT=0,bingoChaseDir={x:0,z:0};  // chases an imaginary butterfly after waking
+  let nightT=0,nightTarget=0,autoNightT=120; // night mode: 0=day, 1=night
+  let banditShown=false;                      // easter egg one-shot per session
+  let lastSpaceT=-1;                           // for double-tap space
+  let marquiStuckT=0;                          // > 0 while strimmer is jammed and Marqui is hitting it
+  let windT=15+Math.random()*20;                // countdown to next wind gust
+  let windActive=0;                            // 0..1 strength of current gust
+  let sunFaceT=0,sunFaceMode='normal';          // sun-face reaction timer
 
   // ===== CROW =====
   // Glides over the yard, perches on trees, and ~15% of the time lands on
@@ -1248,6 +1285,9 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const crowTo=new THREE.Vector3(0,7,0);
   let crowFlightT=0,crowFlightDur=3,crowPerchT=0,crowOnMarqui=false,crowWingPhase=0;
   let crowLookYaw=0,crowLookT=0;  // for "looking around" while perched
+  let crowCarryingBone=null;      // bone the crow has stolen (or null)
+  let crowPoopT=15+Math.random()*15; // countdown to next mid-flight poop
+  let crowStrimmerScareT=0;       // > 0 while Marqui is mid-swing scaring crow
   const CROW_MARQUI_Y=3.7;        // perch height clearly on top of Marqui's head + hair
   function pickCrowTarget(){
     // 15% chance to land on Marqui's head
@@ -1271,49 +1311,149 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   crow.group.position.copy(crowFrom);
   pickCrowTarget();
 
+  // White voxel "poop" the crow drops mid-flight. Falls under gravity, settles on
+  // whoever is under it (Marqui rages / Bluey spins / ground stains).
+  const crowPoops=[];
+  function spawnCrowPoop(){
+    const mesh=box(0.09,0.09,0.09,M.wh);
+    mesh.position.copy(crow.group.position);
+    mesh.position.y-=0.2;
+    scene.add(mesh);
+    crowPoops.push({mesh,vy:0,landed:false,stainT:7});
+  }
+  function updateCrowPoops(dt){
+    for(let i=crowPoops.length-1;i>=0;i--){
+      const p=crowPoops[i];
+      if(!p.landed){
+        p.vy+=14*dt;
+        p.mesh.position.y-=p.vy*dt;
+        if(p.mesh.position.y<=0.05){
+          p.mesh.position.y=0.05;p.landed=true;
+          const px=p.mesh.position.x,pz=p.mesh.position.z;
+          const dxM=px-marqui.group.position.x,dzM=pz-marqui.group.position.z;
+          if(dxM*dxM+dzM*dzM<0.8*0.8){
+            marquiAngryT=Math.max(marquiAngryT,8);
+            recentMarquiHits=Math.max(recentMarquiHits,3);
+            marquiHitDecayT=20;
+            floatMessage('¡Aaagh!',marqui.group.position.x,3.2,marqui.group.position.z,'#fff');
+            showToast('🦅💩 ¡Le cayó encima a Marqui!');
+          }else{
+            const dxB=px-bluey.position.x,dzB=pz-bluey.position.z;
+            if(dxB*dxB+dzB*dzB<0.8*0.8){
+              spinT=Math.max(spinT,0.8);
+              playBark('surprised');
+              floatMessage('¡Buaj!',bluey.position.x,2.2,bluey.position.z,'#fff');
+            }
+          }
+        }
+      }else{
+        p.stainT-=dt;
+        if(p.stainT<1.5){
+          const a=Math.max(0,p.stainT/1.5);
+          p.mesh.scale.set(a,a*0.3,a);
+        }
+        if(p.stainT<=0){scene.remove(p.mesh);crowPoops.splice(i,1)}
+      }
+    }
+  }
+
+  // When the crow drops/loses the stolen bone, it falls under gravity to the ground
+  function dropCrowBone(){
+    if(!crowCarryingBone)return;
+    const m=crowCarryingBone;
+    m.falling=true;
+    m.fallVy=0;
+    m.x=m.mesh.position.x;
+    m.z=m.mesh.position.z;
+    m.stolenBy=null;
+    crowCarryingBone=null;
+  }
+
   function updateCrow(dt){
     crowWingPhase+=dt*(crowMode==='flying'?16:3);
+    if(crowStrimmerScareT>0)crowStrimmerScareT-=dt;
     if(crowMode==='flying'){
       crowFlightT+=dt;
       const k=Math.min(1,crowFlightT/crowFlightDur);
-      // Smoothstep + arc on Y
       const s=k*k*(3-2*k);
       crow.group.position.x=crowFrom.x+(crowTo.x-crowFrom.x)*s;
       crow.group.position.z=crowFrom.z+(crowTo.z-crowFrom.z)*s;
       const baseY=crowFrom.y+(crowTo.y-crowFrom.y)*s;
       crow.group.position.y=baseY+Math.sin(k*Math.PI)*2.2;
-      // Face direction of travel. The crow model's "front" is +X local
-      // (beak/head sit on +X), so the correct yaw is atan2(-dz, dx) — not
-      // atan2(dx, dz) which would be right for a +Z-facing model.
+      // Yaw: crow model "front" is +X local, so atan2(-dz, dx)
       const dx=crowTo.x-crowFrom.x,dz=crowTo.z-crowFrom.z;
       if(dx*dx+dz*dz>0.01)crow.group.rotation.y=Math.atan2(-dz,dx);
-      // Flap
       const flap=Math.sin(crowWingPhase)*0.9;
       crow.wingL.rotation.x=flap;
       crow.wingR.rotation.x=-flap;
+      // Try stealing a bone if flying close to one
+      if(!crowCarryingBone){
+        for(const m of bones){
+          if(m.collected||m.stolenBy||m.falling)continue;
+          const ddx=crow.group.position.x-m.x,ddz=crow.group.position.z-m.z;
+          if(ddx*ddx+ddz*ddz<2.0*2.0&&Math.random()<0.04){
+            crowCarryingBone=m;
+            m.stolenBy='crow';
+            showToast('🦅 ¡El cuervo se llevó un hueso!');
+            break;
+          }
+        }
+      }
+      // Carry: glue bone underneath crow
+      if(crowCarryingBone){
+        crowCarryingBone.mesh.position.x=crow.group.position.x;
+        crowCarryingBone.mesh.position.y=crow.group.position.y-0.4;
+        crowCarryingBone.mesh.position.z=crow.group.position.z;
+      }
+      // Periodic mid-flight poop (only when high enough that it makes sense)
+      crowPoopT-=dt;
+      if(crowPoopT<=0&&crow.group.position.y>2){
+        spawnCrowPoop();
+        crowPoopT=20+Math.random()*25;
+      }
       if(k>=1){
         crowMode='perched';
         crowPerchT=3+Math.random()*4;
         if(crowOnMarqui){
-          // Marqui rage spike: top up the anger timer regardless of hit count
           marquiAngryT=Math.max(marquiAngryT,8);
           recentMarquiHits=Math.max(recentMarquiHits,3);
           marquiHitDecayT=20;
           floatMessage('¡Eh, fuera de aquí!',marqui.group.position.x,3.4,marqui.group.position.z,'#8E2F22');
           showToast('🐦 Un cuervo se posó en Marqui — está furioso');
+          // After ~1s Marqui will swat at the crow, scaring it off
+          setTimeout(()=>{
+            if(crowOnMarqui&&crowMode==='perched')crowStrimmerScareT=0.6;
+          },1000);
         }
       }
     }else{
-      // Perched: stick to target (Marqui moves; trees don't)
       if(crowOnMarqui){
         crow.group.position.x=marqui.group.position.x;
         crow.group.position.z=marqui.group.position.z;
         crow.group.position.y=CROW_MARQUI_Y;
+        // Marqui's swat shortens perch dramatically
+        if(crowStrimmerScareT>0&&crowPerchT>0.25){
+          crowPerchT=0.15;
+          playBark('surprised');
+        }
       }
-      // Wings rest
+      // While perched & carrying, park the bone next to the crow's feet
+      if(crowCarryingBone){
+        crowCarryingBone.mesh.position.x=crow.group.position.x+0.3;
+        crowCarryingBone.mesh.position.y=crow.group.position.y-0.2;
+        crowCarryingBone.mesh.position.z=crow.group.position.z+0.3;
+      }
+      // Bluey spins (E) near a perched crow holding a bone → it flees
+      if(crowCarryingBone&&spinT>0&&crowPerchT>0.25){
+        const bdx=bluey.position.x-crow.group.position.x;
+        const bdz=bluey.position.z-crow.group.position.z;
+        if(bdx*bdx+bdz*bdz<16){
+          crowPerchT=0.15;
+          playBark('happy');
+        }
+      }
       crow.wingL.rotation.x*=Math.pow(0.4,dt);
       crow.wingR.rotation.x*=Math.pow(0.4,dt);
-      // Look around: pick a new yaw target every ~1-3s and ease toward it
       crowLookT-=dt;
       if(crowLookT<=0){
         crowLookYaw=crow.group.rotation.y+(Math.random()-0.5)*Math.PI*0.9;
@@ -1325,7 +1465,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       crow.group.rotation.y+=nd*Math.min(1,dt*4);
       crowPerchT-=dt;
       if(crowPerchT<=0){
-        // Take off
+        if(crowCarryingBone)dropCrowBone();
         crowFrom.copy(crow.group.position);
         pickCrowTarget();
         crowMode='flying';
@@ -1903,6 +2043,20 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       recentering=true;
       recenterT=0;
     }
+    // Double-tap Space → "¡Sin manos!" high jump with mid-air spin
+    if(k==='space'){
+      const nowS=performance.now()/1000;
+      if(lastSpaceT>0&&nowS-lastSpaceT<0.3&&grounded&&!napActive&&!knockback.active){
+        vy=11;grounded=false;sfxBoing();playBark('jump');
+        spinT=Math.max(spinT,0.55);
+        floatMessage('¡Sin manos!',bluey.position.x,2.4,bluey.position.z,'#5BA8C5');
+        sunFaceMode='surprised';sunFaceT=1.4;
+        keys.space=false;  // prevent normal-jump from also firing this frame
+        lastSpaceT=-1;
+      }else{
+        lastSpaceT=nowS;
+      }
+    }
     if(k==='space'||['w','a','s','d'].includes(k))e.preventDefault();
     if(k==='r')reset();
   }
@@ -1958,7 +2112,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     zoomD=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX,zoomD*factor));
     resize();
   },{passive:false});
-  // Press C to recentre the camera and reset zoom, E to chase tail, Z to nap
+  // C centre camera · E chase tail · Z nap · N toggle night · B Bandit easter egg
   window.addEventListener('keydown',(e)=>{
     if(e.repeat)return;
     const k=e.key.toLowerCase();
@@ -1971,9 +2125,18 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     }else if(k==='e'&&spinT<=0&&!knockback.active&&!napActive&&firstInput){
       spinT=1.0;
       playBark('happy');
+      sunFaceMode='wink';sunFaceT=1.0;
       if(Math.random()<0.5)setTimeout(()=>playBark('yip'),230);
     }else if(k==='z'&&!knockback.active&&firstInput){
       toggleNap();
+      sunFaceMode='sleepy';sunFaceT=napActive?3.0:0.5;
+    }else if(k==='n'&&firstInput){
+      nightTarget=nightTarget>0.5?0:1;
+      autoNightT=Infinity;  // user took control
+      showToast(nightTarget>0.5?'🌙 Anochece sobre Brisbane':'☀️ Vuelve el día');
+    }else if(k==='b'&&firstInput&&!banditShown){
+      banditShown=true;
+      showToast('🐶 Bandit está dentro viendo la repe de Bluey en la tele');
     }
   });
 
@@ -2045,7 +2208,16 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     foxY=0;vy=0;foxYaw=0;foxYawTarget=0;grounded=true;
     knockback.active=false;knockback.vx=0;knockback.vz=0;knockback.t=0;
     bluey.rotation.y=0;
-    bones.forEach(m=>{m.collected=false;m.mesh.visible=true});
+    bones.forEach(m=>{
+      m.collected=false;m.mesh.visible=true;
+      m.stolenBy=null;m.falling=false;m.fallVy=0;
+      // Restore original spawn position
+      m.mesh.position.set(m._spawnX!=null?m._spawnX:m.x,0.4,m._spawnZ!=null?m._spawnZ:m.z);
+      m.x=m._spawnX!=null?m._spawnX:m.x;
+      m.z=m._spawnZ!=null?m._spawnZ:m.z;
+    });
+    crowCarryingBone=null;crowStrimmerScareT=0;
+    crowPoops.forEach(p=>scene.remove(p.mesh));crowPoops.length=0;
     collected=0;
     boneCountEl.textContent=`0 / ${totalBones}`;
     winFlash.classList.remove('show');
@@ -2053,7 +2225,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     bluewin=false;marquiwin=false;tuftsCut=0;
     recentMarquiHits=0;marquiHitDecayT=0;marquiAngryT=0;
     fenceJumpT=0;spinT=0;
-    bingoNearT=0;bingoAwakeT=0;bingoNoticed=false;
+    bingoNearT=0;bingoAwakeT=0;bingoNoticed=false;bingoChaseT=0;
+    marquiStuckT=0;sunFaceT=0;
     if(napActive)toggleNap();
   }
   const MARQUI_GOAL=20;  // tufts Marqui needs to cut to "finish" first
@@ -2153,6 +2326,11 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
           marquiTarget.tuft.cut=true;
           startTuftCutAnim(marquiTarget.tuft);
           tuftsCut++;
+          // ~2% chance the strimmer jams; Marqui shakes it for a second
+          if(Math.random()<0.02){
+            marquiStuckT=1.0;
+            floatMessage('🔧 ¡Argh!',marqui.group.position.x,3.2,marqui.group.position.z,'#8E2F22');
+          }
           if(tuftsCut>=MARQUI_GOAL&&!marquiwin){
             marquiwin=true;  // just a "toast already shown" flag now; play continues
             showToast('🌿 Marqui terminó de podar antes que tú… ¡sigue buscando huesos!');
@@ -2175,6 +2353,22 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     }else{
       marqui.head.rotation.z*=0.88;
       marqui.head.rotation.x*=0.88;
+    }
+    // Marqui's body shakes briefly when the strimmer jams
+    if(marquiStuckT>0){
+      marquiStuckT-=dt;
+      marqui.body.rotation.z=Math.sin(performance.now()*0.04)*0.18;
+    }else{
+      marqui.body.rotation.z*=0.85;
+    }
+    // Marqui swats the strimmer overhead to scare the crow
+    if(crowStrimmerScareT>0){
+      // Quick "raise the strimmer up" motion that fades out
+      const phase=1-crowStrimmerScareT/0.6;
+      const env=Math.sin(phase*Math.PI);
+      marqui.strimmer.rotation.x=-1.0-env*1.4;  // base -1.0, peaks at ~-2.4 (overhead)
+    }else{
+      marqui.strimmer.rotation.x+=(-1.0-marqui.strimmer.rotation.x)*Math.min(1,dt*8);
     }
 
     // Smooth yaw
@@ -2203,6 +2397,59 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     setMowerActive(marquiMode==='cutting');
   }
 
+  // Ambient systems: night lerp, wind gusts, sun face reactions
+  const sunSvg=document.querySelector('.sun');
+  function updateAmbient(dt){
+    // Auto-night after ~2 min if the player hasn't toggled
+    if(autoNightT!==Infinity){
+      autoNightT-=dt;
+      if(autoNightT<=0){
+        nightTarget=1;
+        autoNightT=Infinity;
+        showToast('🌙 Cae la noche sobre el patio');
+      }
+    }
+    // Lerp current state toward target (~0.8s transition)
+    const dn=(nightTarget-nightT)*Math.min(1,dt*1.3);
+    nightT+=dn;
+    if(Math.abs(nightT-nightTarget)<0.001)nightT=nightTarget;
+    tmpBg.copy(DAY_BG).lerp(NIGHT_BG,nightT);
+    scene.background.copy(tmpBg);
+    scene.fog.color.copy(tmpBg);
+    hemiLight.intensity=0.6*(1-nightT)+0.18*nightT;
+    sun.intensity=0.95*(1-nightT)+0.05*nightT;
+    fill.intensity=0.25*(1-nightT)+0.18*nightT;
+    ambient.intensity=0.15*(1-nightT)+0.30*nightT;
+    document.body.classList.toggle('night',nightT>0.5);
+    // Sun face reaction (CSS classes on the .sun SVG)
+    if(sunFaceT>0){
+      sunFaceT-=dt;
+      if(sunSvg){
+        sunSvg.classList.toggle('sun-wink',sunFaceMode==='wink');
+        sunSvg.classList.toggle('sun-surprised',sunFaceMode==='surprised');
+        sunSvg.classList.toggle('sun-sleepy',sunFaceMode==='sleepy');
+      }
+      if(sunFaceT<=0&&sunSvg){
+        sunSvg.classList.remove('sun-wink','sun-surprised','sun-sleepy');
+      }
+    }
+    // Wind gusts every 30-70s; affect crow wings and pétalos.
+    if(windActive>0){
+      windActive=Math.max(0,windActive-dt*0.45);
+      if(crowMode==='flying'){
+        crow.wingL.rotation.x+=Math.sin(performance.now()*0.06)*0.4*windActive;
+        crow.wingR.rotation.x-=Math.sin(performance.now()*0.06)*0.4*windActive;
+      }
+    }
+    windT-=dt;
+    if(windT<=0){
+      windActive=1.0;
+      windT=30+Math.random()*40;
+      document.body.classList.add('gusting');
+      setTimeout(()=>document.body.classList.remove('gusting'),2500);
+    }
+  }
+
   function updateBingo(dt){
     const bdx=bluey.position.x-bingo.group.position.x;
     const bdz=bluey.position.z-bingo.group.position.z;
@@ -2222,6 +2469,24 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       bingoNearT=0;
       playBark('happy');
       floatMessage('¡Yip!',bingo.group.position.x,2.6,bingo.group.position.z,'#E89B73');
+      // 60% chance: chase an imaginary butterfly
+      if(Math.random()<0.6){
+        bingoChaseT=2.5;
+        const ang=Math.random()*Math.PI*2;
+        bingoChaseDir.x=Math.cos(ang);bingoChaseDir.z=Math.sin(ang);
+      }
+    }
+    if(bingoChaseT>0){
+      bingoChaseT-=dt;
+      bingo.group.position.x+=bingoChaseDir.x*dt*3.2;
+      bingo.group.position.z+=bingoChaseDir.z*dt*3.2;
+      const hop=Math.abs(Math.sin(performance.now()*0.012))*0.28;
+      bingo.body.position.y=0.4+hop;
+      bingo.group.rotation.y=Math.atan2(bingoChaseDir.x,bingoChaseDir.z);
+      const lim=halfW-1;
+      bingo.group.position.x=Math.max(-lim,Math.min(lim,bingo.group.position.x));
+      bingo.group.position.z=Math.max(-lim,Math.min(lim,bingo.group.position.z));
+      if(Math.random()<0.04)floatMessage('🦋',bingo.group.position.x+(Math.random()-0.5)*1.5,2.0,bingo.group.position.z+(Math.random()-0.5)*1.5);
     }
     // Zzz puff (less often when far)
     bingoZzzT-=dt;
@@ -2358,6 +2623,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       updateTufts(dt);
       updateBingo(dt);
       updateCrow(dt);
+    updateCrowPoops(dt);
+    updateAmbient(dt);
       targetCam.copy(bluey.position).add(camOffset).add(panOffset);
       // Knockback flings Bluey at 16 u/s; ease the chase so the camera doesn't jolt
       camera.position.lerp(targetCam,Math.min(1,dt*2.0));
@@ -2499,6 +2766,19 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     // Bone collection
     for(const m of bones){
       if(!m.collected){
+        // Falling animation if dropped by crow (overrides bobbing & cannot be picked mid-air)
+        if(m.falling){
+          m.fallVy+=14*dt;
+          m.mesh.position.y-=m.fallVy*dt;
+          if(m.mesh.position.y<=0.4){
+            m.mesh.position.y=0.4;
+            m.falling=false;m.fallVy=0;
+            m.x=m.mesh.position.x;m.z=m.mesh.position.z;
+          }
+          continue;
+        }
+        // Stolen bone moves with the crow (handled in updateCrow), skip the rest
+        if(m.stolenBy)continue;
         const dx=bluey.position.x-m.x,dz=bluey.position.z-m.z;
         if(dx*dx+dz*dz<0.8*0.8&&foxY<1.0){
           m.collected=true;
@@ -2506,6 +2786,14 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
           collected++;
           boneCountEl.textContent=`${collected} / ${totalBones}`;
           pickupEffect(m.x,m.mesh.position.y+0.4,m.z);
+          // Contextual messages based on progress / state
+          let msg=null;
+          if(collected===1)msg='¡Vamos!';
+          else if(collected===Math.floor(totalBones/2))msg='¡La mitad!';
+          else if(collected===totalBones-1)msg='¡El último!';
+          else if(marquiwin)msg='¡Pero sigue!';
+          else if(knockback.active)msg='¡A pesar de todo!';
+          if(msg)floatMessage(msg,m.x,1.6,m.z,'#3B7894');
           if(collected===totalBones&&!bluewin){
             bluewin=true;
             winFlash.textContent='¡Bien hecho, Bluey!';
@@ -2534,6 +2822,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     updateTufts(dt);
     updateBingo(dt);
     updateCrow(dt);
+    updateCrowPoops(dt);
+    updateAmbient(dt);
 
     // Camera follow
     targetCam.copy(bluey.position).add(camOffset).add(panOffset);
