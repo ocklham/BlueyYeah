@@ -1239,6 +1239,194 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   scene.add(bingo.group);
   let bingoNearT=0,bingoZzzT=2,bingoAwakeT=0,bingoNoticed=false;
   let bingoChaseT=0,bingoChaseDir={x:0,z:0};  // chases an imaginary butterfly after waking
+
+  // ===== ENRIQUE (Marqui's brother, holed up in the house) =====
+  // Cabezón-style figurine: bald top with dark hair on the sides, big nose,
+  // light-blue collared shirt under a navy puffer vest, blue jeans, brown shoes,
+  // brown-liquid glass in one hand.
+  const enriqueVest=new THREE.MeshLambertMaterial({color:0x1F2D4A});
+  const enriquePants=new THREE.MeshLambertMaterial({color:0x4A7BB0});
+  const enriqueShirt=new THREE.MeshLambertMaterial({color:0x8FC4DE});
+  const enriqueShoe=new THREE.MeshLambertMaterial({color:0x3A2418});
+  const enriqueGlass=new THREE.MeshLambertMaterial({color:0xD5C9A3});
+  const enriqueLiquid=new THREE.MeshLambertMaterial({color:0x8B5A28});
+  function createEnrique(){
+    const g=new THREE.Group();
+    const body=new THREE.Group();
+    // Legs (jeans) + brown shoes
+    const legL=box(0.22,0.7,0.22,enriquePants);
+    legL.position.set(-0.13,0.35,0);body.add(legL);
+    const legR=box(0.22,0.7,0.22,enriquePants);
+    legR.position.set(0.13,0.35,0);body.add(legR);
+    const shoeL=box(0.26,0.13,0.34,enriqueShoe);
+    shoeL.position.set(-0.13,0.065,0.06);body.add(shoeL);
+    const shoeR=box(0.26,0.13,0.34,enriqueShoe);
+    shoeR.position.set(0.13,0.065,0.06);body.add(shoeR);
+    // Shirt sleeves visible at the arms (light blue)
+    const sleeveL=box(0.2,0.5,0.2,enriqueShirt);
+    sleeveL.position.set(-0.34,1.0,0);body.add(sleeveL);
+    const sleeveR=box(0.2,0.5,0.2,enriqueShirt);
+    sleeveR.position.set(0.34,1.0,0);body.add(sleeveR);
+    // Hands (skin)
+    const handL=box(0.2,0.16,0.2,M.skin);
+    handL.position.set(-0.34,0.72,0);body.add(handL);
+    const handR=box(0.2,0.16,0.2,M.skin);
+    handR.position.set(0.34,0.72,0.05);body.add(handR);
+    // Glass with brown liquid in right hand
+    const glass=box(0.16,0.2,0.14,enriqueGlass);
+    glass.position.set(0.34,0.88,0.12);body.add(glass);
+    const liquid=box(0.13,0.10,0.11,enriqueLiquid);
+    liquid.position.set(0.34,0.82,0.12);body.add(liquid);
+    // Navy puffer vest covering the torso (wider than the body)
+    const vest=box(0.56,0.62,0.4,enriqueVest);
+    vest.position.set(0,1.0,0);body.add(vest);
+    // Quilted seams (subtle horizontal strips)
+    for(let i=0;i<3;i++){
+      const seam=box(0.58,0.02,0.02,M.bk);
+      seam.position.set(0,0.85+i*0.18,0.21);
+      seam.material.transparent=false;
+      body.add(seam);
+    }
+    // Visible shirt at the neckline (light blue)
+    const collar=box(0.36,0.1,0.4,enriqueShirt);
+    collar.position.set(0,1.32,0);body.add(collar);
+    // Head — peach skin, roundish
+    const head=new THREE.Group();
+    head.add(box(0.6,0.62,0.55,M.skin));
+    // Dark hair sides — bald top, hair only on temples + nape
+    const hairL=box(0.06,0.42,0.5,M.hair);
+    hairL.position.set(-0.32,-0.02,0);head.add(hairL);
+    const hairR=hairL.clone();hairR.position.x=0.32;head.add(hairR);
+    const hairBack=box(0.5,0.08,0.18,M.hair);
+    hairBack.position.set(0,0.3,-0.2);head.add(hairBack);
+    // Thick eyebrows
+    const browL=box(0.16,0.06,0.06,M.hair);
+    browL.position.set(0.16,0.18,0.27);head.add(browL);
+    const browR=browL.clone();browR.position.x=-0.16;head.add(browR);
+    // Eyes — small black dots under the brows
+    const eyeL=box(0.07,0.08,0.05,M.bk);
+    eyeL.position.set(0.16,0.07,0.27);head.add(eyeL);
+    const eyeR=eyeL.clone();eyeR.position.x=-0.16;head.add(eyeR);
+    // Big rounded nose — protrudes forward
+    const nose=box(0.18,0.2,0.2,M.skin);
+    nose.position.set(0,-0.04,0.35);head.add(nose);
+    // Smile
+    const smile=box(0.2,0.04,0.04,M.bk);
+    smile.position.set(0,-0.22,0.27);head.add(smile);
+    head.position.set(0,1.78,0);
+    body.add(head);
+    g.add(body);
+    // Shadow
+    const sh=new THREE.Mesh(new THREE.CircleGeometry(0.5,18),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25}));
+    sh.rotation.x=-Math.PI/2;sh.position.y=0.04;
+    g.add(sh);
+    return {group:g,body,head,legL,legR};
+  }
+  const enrique=createEnrique();
+  // Spawn point: at the house door (HX=-halfW+5.5, HZ=-halfW+5), hidden by default
+  enrique.group.position.set(-halfW+5.5,0,-halfW+5);
+  enrique.group.visible=false;
+  scene.add(enrique.group);
+  let enriqueState='hidden';  // 'hidden' | 'walking_out' | 'bothering' | 'running_back'
+  let enriqueStateT=45+Math.random()*30;  // first exit in 45-75s
+  let enriqueYaw=0,enriqueYawTarget=0,enriqueWalkPhase=0,enriqueBotherT=0;
+  const enriqueBounce={active:false,vx:0,vz:0,t:0};
+  const ENRIQUE_HOUSE=new THREE.Vector3(-halfW+5.5,0,-halfW+5);
+
+  function updateEnrique(dt){
+    // Bouncing off Bluey: ignore state, just decay velocity
+    if(enriqueBounce.active){
+      enriqueBounce.t-=dt;
+      enrique.group.position.x+=enriqueBounce.vx*dt;
+      enrique.group.position.z+=enriqueBounce.vz*dt;
+      const decay=Math.pow(0.2,dt);
+      enriqueBounce.vx*=decay;enriqueBounce.vz*=decay;
+      enrique.group.rotation.y+=dt*10;
+      if(enriqueBounce.t<=0){
+        enriqueBounce.active=false;
+        enriqueYaw=enrique.group.rotation.y;
+      }
+      return;
+    }
+    if(enriqueState==='hidden'){
+      enriqueStateT-=dt;
+      if(enriqueStateT<=0){
+        enriqueState='walking_out';
+        enrique.group.position.copy(ENRIQUE_HOUSE);
+        enrique.group.visible=true;
+        showToast('🚪 Enrique sale de la casa a molestar a Marqui');
+      }
+      return;
+    }
+    // Targets per state
+    let tx,tz,sp;
+    if(enriqueState==='walking_out'){tx=marqui.group.position.x;tz=marqui.group.position.z;sp=2.2;}
+    else if(enriqueState==='running_back'){tx=ENRIQUE_HOUSE.x;tz=ENRIQUE_HOUSE.z;sp=4.2;}
+    if(enriqueState==='walking_out'||enriqueState==='running_back'){
+      const dx=tx-enrique.group.position.x,dz=tz-enrique.group.position.z;
+      const dist=Math.sqrt(dx*dx+dz*dz);
+      if(enriqueState==='walking_out'&&dist<1.6){
+        enriqueState='bothering';
+        enriqueBotherT=3+Math.random()*2;
+        floatMessage('¡Pesado!',marqui.group.position.x,3.4,marqui.group.position.z,'#8E2F22');
+      }else if(enriqueState==='running_back'&&dist<0.6){
+        enriqueState='hidden';
+        enrique.group.visible=false;
+        enrique.body.position.y=0;
+        enriqueStateT=60+Math.random()*60;  // 60-120s next time
+      }else{
+        enrique.group.position.x+=(dx/dist)*sp*dt;
+        enrique.group.position.z+=(dz/dist)*sp*dt;
+        enriqueYawTarget=Math.atan2(dx,dz);
+        enriqueWalkPhase+=dt*(enriqueState==='running_back'?9:6);
+      }
+    }else if(enriqueState==='bothering'){
+      enriqueBotherT-=dt;
+      // Keep poking Marqui's anger high
+      marquiAngryT=Math.max(marquiAngryT,5);
+      recentMarquiHits=Math.max(recentMarquiHits,3);
+      marquiHitDecayT=20;
+      // Bounce on the spot — body up/down + arm waving via rotation
+      const phase=performance.now()*0.012;
+      enrique.body.position.y=Math.abs(Math.sin(phase))*0.18;
+      // Face Marqui
+      const dxm=marqui.group.position.x-enrique.group.position.x;
+      const dzm=marqui.group.position.z-enrique.group.position.z;
+      enriqueYawTarget=Math.atan2(dxm,dzm);
+      if(enriqueBotherT<=0){
+        enriqueState='running_back';
+        playBark('happy');
+      }
+    }
+    // Yaw smoothing
+    let dy=enriqueYawTarget-enriqueYaw;
+    while(dy>Math.PI)dy-=Math.PI*2;
+    while(dy<-Math.PI)dy+=Math.PI*2;
+    enriqueYaw+=dy*Math.min(1,dt*8);
+    enrique.group.rotation.y=enriqueYaw;
+    // Walk animation
+    if(enriqueState==='walking_out'||enriqueState==='running_back'){
+      const sw=Math.sin(enriqueWalkPhase)*0.45;
+      enrique.legL.rotation.x=sw;
+      enrique.legR.rotation.x=-sw;
+      enrique.body.position.y=Math.abs(Math.sin(enriqueWalkPhase*2))*0.05;
+    }
+    // Collide with Bluey → bounce both
+    if(enriqueState!=='hidden'){
+      const bdx=bluey.position.x-enrique.group.position.x;
+      const bdz=bluey.position.z-enrique.group.position.z;
+      const bd2=bdx*bdx+bdz*bdz;
+      if(bd2<1.0*1.0&&foxY<1.3&&!knockback.active){
+        const d=Math.sqrt(bd2)||1;
+        triggerKnockback(enrique.group.position.x,enrique.group.position.z);
+        enriqueBounce.active=true;
+        enriqueBounce.vx=-(bdx/d)*9;
+        enriqueBounce.vz=-(bdz/d)*9;
+        enriqueBounce.t=0.55;
+        floatMessage('¡Ay!',enrique.group.position.x,2.3,enrique.group.position.z,'#1F2D4A');
+      }
+    }
+  }
   let nightT=0,nightTarget=0,autoNightT=120; // night mode: 0=day, 1=night
   let banditShown=false;                      // easter egg one-shot per session
   let lastSpaceT=-1;                           // for double-tap space
@@ -2227,6 +2415,9 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     fenceJumpT=0;spinT=0;
     bingoNearT=0;bingoAwakeT=0;bingoNoticed=false;bingoChaseT=0;
     marquiStuckT=0;sunFaceT=0;
+    enriqueState='hidden';enrique.group.visible=false;enrique.body.position.y=0;
+    enriqueStateT=45+Math.random()*30;
+    enriqueBounce.active=false;enriqueBounce.vx=0;enriqueBounce.vz=0;
     if(napActive)toggleNap();
   }
   const MARQUI_GOAL=20;  // tufts Marqui needs to cut to "finish" first
@@ -2623,8 +2814,9 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       updateTufts(dt);
       updateBingo(dt);
       updateCrow(dt);
-    updateCrowPoops(dt);
-    updateAmbient(dt);
+      updateCrowPoops(dt);
+      updateAmbient(dt);
+      updateEnrique(dt);
       targetCam.copy(bluey.position).add(camOffset).add(panOffset);
       // Knockback flings Bluey at 16 u/s; ease the chase so the camera doesn't jolt
       camera.position.lerp(targetCam,Math.min(1,dt*2.0));
@@ -2824,6 +3016,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     updateCrow(dt);
     updateCrowPoops(dt);
     updateAmbient(dt);
+    updateEnrique(dt);
 
     // Camera follow
     targetCam.copy(bluey.position).add(camOffset).add(panOffset);
