@@ -757,7 +757,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.85});
-    crowPerches.push({x,z,h:h+1.5});
+    crowPerches.push({x,z,h:h+1.9});  // top eucalyptus leaf is around h+1.65
   }
   function jacarandaTree(x,z){
     const t=new THREE.Group();
@@ -781,7 +781,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.95});
-    crowPerches.push({x,z,h:h+1.6});
+    crowPerches.push({x,z,h:h+2.4});  // jacaranda crown reaches ~h+2.1
   }
   function regularTree(x,z){
     const t=new THREE.Group();
@@ -799,7 +799,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     t.position.set(x,0,z);
     scene.add(t);
     obstacles.push({x,z,r:0.9});
-    crowPerches.push({x,z,h:h+1.5});
+    crowPerches.push({x,z,h:h+2.2});  // generic crown reaches ~h+1.9
   }
 
   function rock(x,z){
@@ -1247,10 +1247,12 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const crowFrom=new THREE.Vector3(0,7,0);
   const crowTo=new THREE.Vector3(0,7,0);
   let crowFlightT=0,crowFlightDur=3,crowPerchT=0,crowOnMarqui=false,crowWingPhase=0;
+  let crowLookYaw=0,crowLookT=0;  // for "looking around" while perched
+  const CROW_MARQUI_Y=3.2;        // perch height on top of Marqui's head + hair
   function pickCrowTarget(){
     // 15% chance to land on Marqui's head
     if(Math.random()<0.15){
-      crowTo.set(marqui.group.position.x,2.7,marqui.group.position.z);
+      crowTo.set(marqui.group.position.x,CROW_MARQUI_Y,marqui.group.position.z);
       crowOnMarqui=true;
     }else if(crowPerches.length){
       const p=crowPerches[Math.floor(Math.random()*crowPerches.length)];
@@ -1280,9 +1282,11 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       crow.group.position.z=crowFrom.z+(crowTo.z-crowFrom.z)*s;
       const baseY=crowFrom.y+(crowTo.y-crowFrom.y)*s;
       crow.group.position.y=baseY+Math.sin(k*Math.PI)*2.2;
-      // Face direction of travel
+      // Face direction of travel. The crow model's "front" is +X local
+      // (beak/head sit on +X), so the correct yaw is atan2(-dz, dx) — not
+      // atan2(dx, dz) which would be right for a +Z-facing model.
       const dx=crowTo.x-crowFrom.x,dz=crowTo.z-crowFrom.z;
-      if(dx*dx+dz*dz>0.01)crow.group.rotation.y=Math.atan2(dx,dz);
+      if(dx*dx+dz*dz>0.01)crow.group.rotation.y=Math.atan2(-dz,dx);
       // Flap
       const flap=Math.sin(crowWingPhase)*0.9;
       crow.wingL.rotation.x=flap;
@@ -1304,13 +1308,21 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
       if(crowOnMarqui){
         crow.group.position.x=marqui.group.position.x;
         crow.group.position.z=marqui.group.position.z;
-        crow.group.position.y=2.7;
+        crow.group.position.y=CROW_MARQUI_Y;
       }
       // Wings rest
       crow.wingL.rotation.x*=Math.pow(0.4,dt);
       crow.wingR.rotation.x*=Math.pow(0.4,dt);
-      // Little head bobs by jittering yaw
-      crow.group.rotation.y+=Math.sin(performance.now()*0.004)*dt*0.6;
+      // Look around: pick a new yaw target every ~1-3s and ease toward it
+      crowLookT-=dt;
+      if(crowLookT<=0){
+        crowLookYaw=crow.group.rotation.y+(Math.random()-0.5)*Math.PI*0.9;
+        crowLookT=0.8+Math.random()*2.0;
+      }
+      let nd=crowLookYaw-crow.group.rotation.y;
+      while(nd>Math.PI)nd-=Math.PI*2;
+      while(nd<-Math.PI)nd+=Math.PI*2;
+      crow.group.rotation.y+=nd*Math.min(1,dt*4);
       crowPerchT-=dt;
       if(crowPerchT<=0){
         // Take off
