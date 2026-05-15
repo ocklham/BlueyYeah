@@ -1250,6 +1250,8 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
   const enriqueShoe=new THREE.MeshLambertMaterial({color:0x3A2418});
   const enriqueGlass=new THREE.MeshLambertMaterial({color:0xD5C9A3});
   const enriqueLiquid=new THREE.MeshLambertMaterial({color:0x8B5A28});
+  const enriqueHair=new THREE.MeshLambertMaterial({color:0x9A9A9A});  // graying hair — older brother
+  const enriqueBrow=new THREE.MeshLambertMaterial({color:0x5A5A5A}); // darker gray brows
   function createEnrique(){
     const g=new THREE.Group();
     const body=new THREE.Group();
@@ -1293,14 +1295,14 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     // Head — peach skin, roundish
     const head=new THREE.Group();
     head.add(box(0.6,0.62,0.55,M.skin));
-    // Dark hair sides — bald top, hair only on temples + nape
-    const hairL=box(0.06,0.42,0.5,M.hair);
+    // Graying hair on temples + nape — bald top
+    const hairL=box(0.06,0.42,0.5,enriqueHair);
     hairL.position.set(-0.32,-0.02,0);head.add(hairL);
     const hairR=hairL.clone();hairR.position.x=0.32;head.add(hairR);
-    const hairBack=box(0.5,0.08,0.18,M.hair);
+    const hairBack=box(0.5,0.08,0.18,enriqueHair);
     hairBack.position.set(0,0.3,-0.2);head.add(hairBack);
-    // Thick eyebrows
-    const browL=box(0.16,0.06,0.06,M.hair);
+    // Thick eyebrows — slightly darker than the hair for definition
+    const browL=box(0.16,0.06,0.06,enriqueBrow);
     browL.position.set(0.16,0.18,0.27);head.add(browL);
     const browR=browL.clone();browR.position.x=-0.16;head.add(browR);
     // Eyes — small black dots under the brows
@@ -1315,9 +1317,11 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     smile.position.set(0,-0.22,0.27);head.add(smile);
     head.position.set(0,1.78,0);
     body.add(head);
+    // Hermano mayor — scale ~1.4 so he stands slightly taller than Marqui (~2.9u)
+    body.scale.setScalar(1.4);
     g.add(body);
-    // Shadow
-    const sh=new THREE.Mesh(new THREE.CircleGeometry(0.5,18),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25}));
+    // Shadow (scaled with him so it matches the footprint)
+    const sh=new THREE.Mesh(new THREE.CircleGeometry(0.65,18),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25}));
     sh.rotation.x=-Math.PI/2;sh.position.y=0.04;
     g.add(sh);
     return {group:g,body,head,legL,legR};
@@ -1360,8 +1364,9 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     }
     // Targets per state
     let tx,tz,sp;
-    if(enriqueState==='walking_out'){tx=marqui.group.position.x;tz=marqui.group.position.z;sp=2.2;}
-    else if(enriqueState==='running_back'){tx=ENRIQUE_HOUSE.x;tz=ENRIQUE_HOUSE.z;sp=4.2;}
+    // Slower than the others — le duele la pierna izquierda y va cojeando
+    if(enriqueState==='walking_out'){tx=marqui.group.position.x;tz=marqui.group.position.z;sp=1.3;}
+    else if(enriqueState==='running_back'){tx=ENRIQUE_HOUSE.x;tz=ENRIQUE_HOUSE.z;sp=2.0;}
     if(enriqueState==='walking_out'||enriqueState==='running_back'){
       const dx=tx-enrique.group.position.x,dz=tz-enrique.group.position.z;
       const dist=Math.sqrt(dx*dx+dz*dz);
@@ -1378,7 +1383,7 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
         enrique.group.position.x+=(dx/dist)*sp*dt;
         enrique.group.position.z+=(dz/dist)*sp*dt;
         enriqueYawTarget=Math.atan2(dx,dz);
-        enriqueWalkPhase+=dt*(enriqueState==='running_back'?9:6);
+        enriqueWalkPhase+=dt*(enriqueState==='running_back'?6:4);
       }
     }else if(enriqueState==='bothering'){
       enriqueBotherT-=dt;
@@ -1404,12 +1409,21 @@ footer .paw svg{width:14px;height:14px;fill:currentColor}
     while(dy<-Math.PI)dy+=Math.PI*2;
     enriqueYaw+=dy*Math.min(1,dt*8);
     enrique.group.rotation.y=enriqueYaw;
-    // Walk animation
+    // Limp animation — left leg is the bad one: less swing, slight lag.
+    // Body lurches asymmetrically (drops on the good leg's step).
     if(enriqueState==='walking_out'||enriqueState==='running_back'){
-      const sw=Math.sin(enriqueWalkPhase)*0.45;
-      enrique.legL.rotation.x=sw;
+      const sw=Math.sin(enriqueWalkPhase)*0.45;            // good leg
+      const swLame=Math.sin(enriqueWalkPhase-0.7)*0.14;    // bad leg: less swing + phase lag
+      enrique.legL.rotation.x=swLame;
       enrique.legR.rotation.x=-sw;
-      enrique.body.position.y=Math.abs(Math.sin(enriqueWalkPhase*2))*0.05;
+      enrique.body.position.y=Math.abs(Math.sin(enriqueWalkPhase*2))*0.03
+        +Math.max(0,Math.sin(enriqueWalkPhase))*0.05;
+      // Tilt the torso a touch toward the bad side each time he steps on it
+      enrique.body.rotation.z=Math.sin(enriqueWalkPhase)*0.06;
+    }else if(enriqueState==='bothering'){
+      enrique.body.rotation.z=Math.sin(enriqueWalkPhase*0.8)*0.04;
+    }else{
+      enrique.body.rotation.z*=0.85;
     }
     // Collide with Bluey → bounce both
     if(enriqueState!=='hidden'){
